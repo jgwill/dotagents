@@ -1,6 +1,6 @@
 ---
 name: rise-pde-session-multi-agents-v2
-description: "RISE PDE session with multi-agent post-wake execution. Decompose → STC → SLEEP 1500s (enforced bash) → Wake → SPAWN claude-opus-4.6 army → Execute → MINO close. Supports multi-part cascading missions."
+description: "RISE PDE session with multi-agent post-wake execution. Decompose → STC → SLEEP 1500s (enforced bash) → Wake → SPAWN claude-sonnet-4.6 (and gpt-5.4) army → Execute → MINO close. Supports multi-part cascading missions."
 argument-hint: "your full task description — what you want built, changed, explored"
 user-invokable: true
 disable-model-invocation: false
@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 ## ⛔ SUBAGENT MODEL RULE — READ THIS FIRST ⛔
 
-**EVERY SINGLE SUBAGENT you spawn MUST use `model: "claude-opus-4.6"`.**
+**EVERY SINGLE SUBAGENT you spawn MUST use `model: "claude-sonnet-4.6" or "gpt-5.4" (or if available "gpt-5.5"`.**
 
 This means:
 - When you call the Agent tool, you MUST set `model: "claude-opus-4.6"`
