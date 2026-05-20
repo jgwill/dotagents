@@ -77,3 +77,4 @@
 * **STATUS:** 
 * **MMOT:** 
   
+deep-research-foundations/ is being developped into /usr/local/src/mightyeagle/skills/
