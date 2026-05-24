@@ -2,8 +2,7 @@
 
 Full reference on proven patterns for multi-agent research. Extracted from Anthropic's engineering blog, production systems (GPT-Researcher, Onyx, LangChain), and 40+ sources.
 
-For the comprehensive research document with all sources, see:
-`/mnt/c/Users/olled/Documents/Obsidian/Notes/02 - Content/Research/Multi-Agent Research Orchestration Patterns 2026.md`
+Keep this as the compact reference. If a longer source dossier exists, link it from the local project/research folder rather than a personal vault path.
 
 ## Key Statistics
 
@@ -22,7 +21,7 @@ For the comprehensive research document with all sources, see:
 
 Every production system converges on this:
 
-```
+\`\`\`
 User Query
     |
     v
@@ -37,7 +36,7 @@ User Query
     ├── Evaluate coverage → spawn more if gaps
     ├── Synthesize all findings
     └── Generate final report with citations
-```
+\`\`\`
 
 **Anthropic uses**: Opus 4 lead + Sonnet 4 workers. Different models reduce single-model blind spots.
 

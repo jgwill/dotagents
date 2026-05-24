@@ -7,22 +7,22 @@ description: >
   on any topic. Also triggers when user says "research this for me", "find everything
   about", "I need a research doc on", or describes needing exhaustive coverage of a
   subject. NOT for quick lookups or single questions — this is for producing
-  comprehensive research documents saved to the vault.
+  comprehensive research documents saved to the appropriate project/workspace location.
 version: 0.2.0
 ---
 
 # Deep Research
 
-Multi-agent parallel research orchestrator. Decomposes any research topic into 3-6 specialized angles using MECE principles, spawns Opus sub-agents to cover each angle simultaneously, runs gap analysis, then synthesizes findings into one comprehensive vault document.
+Multi-agent parallel research orchestrator. Decomposes any research topic into 3-6 specialized angles using MECE principles, spawns Opus sub-agents to cover each angle simultaneously, runs gap analysis, then synthesizes findings into one comprehensive research document.
 
 Anthropic's own multi-agent research system outperforms single-agent by **90.2%**. This skill applies those same proven patterns.
 
-For detailed sub-agent prompt templates by research type: read `references/agent-templates.md`.
-For the full research on multi-agent orchestration patterns: read `references/orchestration-patterns.md`.
+For detailed sub-agent prompt templates by research type: read `agent-templates.md`.
+For the full research on multi-agent orchestration patterns: read `orchestration-patterns.md`.
 
 ## Who This Is For
 
-Olle Dyberg — AI content creator and consultant (@olleai on TikTok, ~9K followers, 1.1M+ views) building around Claude Code, AI agents, and context engineering. Research serves: content creation, meta-prompts, consulting prep, and product development.
+A generic deep-research workflow. Inject the active requester/project context from the user brief, durable preferences/memory, repository guidance, and any supplied notes. Do not hard-code a creator profile, social handle, vault path, or niche unless the current task provides it.
 
 ## The Research Diamond
 
@@ -52,11 +52,10 @@ Before anything else, note today's date. You can get it from the system prompt o
 
 Before spawning any agents:
 
-1. **Read `05 - Resources/People/Olle.md`** — understand who the research is for
-2. **Read `_Index.md`** — scan for existing vault content on the topic
-3. **Read any relevant vault files** — build on existing knowledge, never start from scratch
-4. **Clarify purpose** if unclear — ask "Is this for a meta-prompt, content, consulting, or personal learning?"
-5. **Ask about sources** — Use the `AskUserQuestion` tool to ask:
+1. **Read the user brief and project guidance** — AGENTS.md/CLAUDE.md, README, issue/spec links, or supplied notes
+2. **Search prior context** — use memory/session search/local notes when available; build on existing knowledge, never start from scratch
+3. **Clarify purpose only if unclear** — e.g. issue work, decision brief, spec, research artifact, content, or personal learning
+4. **Ask about sources when it changes quality** — use the available clarification tool to ask:
    - "Are there specific sources you want me to prioritize?" with options like:
      - "No, use defaults" — proceed with standard source strategy
      - "Specific people/accounts" — X accounts, bloggers, researchers to focus on
@@ -76,9 +75,9 @@ Break the topic into **Mutually Exclusive, Collectively Exhaustive** angles. Eac
 
 | Research Type | Typical Angles |
 |--------------|----------------|
-| Content/Platform | General best practices, Niche-specific (AI/tech), Real examples with metrics, Psychology/copywriting, Vault knowledge, X discourse |
-| Technology | Current state/ecosystem, Real shipped code (grep MCP), Community sentiment (X), Comparisons/alternatives, Vault knowledge, Implementation patterns |
-| Business | Market data/benchmarks, Niche-specific practices, Strategy frameworks, Vault knowledge, X practitioner discourse |
+| Content/Platform | General best practices, domain-specific strategy, real examples with metrics, psychology/copywriting, existing knowledge, social discourse |
+| Technology | Current state/ecosystem, real shipped code, community sentiment, comparisons/alternatives, existing knowledge, implementation patterns |
+| Business | Market data/benchmarks, domain-specific practices, strategy frameworks, existing knowledge, practitioner discourse |
 
 **Scale effort to complexity:**
 - Simple factual topic: 3 agents
@@ -87,13 +86,13 @@ Break the topic into **Mutually Exclusive, Collectively Exhaustive** angles. Eac
 
 ### Phase 3: Spawn Parallel Sub-Agents
 
-Spawn **minimum 3, ideally 4-5** sub-agents in parallel using the Task tool. **Always use `model: "opus"`** for all research sub-agents. Research quality depends on reasoning depth — sonnet is not sufficient.
+Spawn **minimum 3, ideally 4-5** sub-agents in parallel using the available delegation tool. Use the strongest practical model for substantive research/synthesis; cheap models are acceptable only for smoke tests or decomposition.
 
 Every sub-agent prompt MUST include these 6 elements:
 
-1. **WHO** — "This research is for Olle Dyberg, a 25-year-old Swedish AI content creator and consultant (@olleai, ~5.5K TikTok followers, 1.1M+ views). His niche is AI tools — Claude Code, agents, context engineering."
+1. **WHO** — "This research is for [requester/project]. Relevant context: [stable preferences, domain, project goals, constraints]."
 
-2. **WHY** — The specific purpose. "...because Olle will feed this into a meta-prompt" or "...because this becomes a vault reference document." Agents that know WHY produce dramatically better results.
+2. **WHY** — The specific purpose, e.g. decision support, issue planning, spec drafting, artifact creation, or reusable knowledge. Agents that know WHY produce dramatically better results.
 
 3. **WHAT ANGLE** — Specific scope AND explicit boundaries: "Cover X. Do NOT cover Y — another agent handles that."
 
@@ -106,14 +105,12 @@ Every sub-agent prompt MUST include these 6 elements:
 #### Sub-Agent Prompt Template
 
 ```
-You are researching [ANGLE] for Olle Dyberg, a 25-year-old Swedish AI content creator
-and consultant (@olleai, ~5.5K TikTok followers, 1.1M+ views). His niche is AI tools —
-Claude Code, AI agents, and context engineering. He also does AI consulting and builds
-digital products.
+You are researching [ANGLE] for [REQUESTER/PROJECT].
+Relevant context: [stable preferences, domain, project goals, constraints, and intended audience].
 
 TODAY'S DATE: [INSERT CURRENT DATE, e.g. 2026-02-10]
 
-PURPOSE: [WHY this research matters — what Olle will do with it]
+PURPOSE: [WHY this research matters — how the requester/project will use it]
 
 YOUR ANGLE: [SPECIFIC SCOPE — what you cover]
 BOUNDARIES: [What you do NOT cover — other agents handle those angles]
@@ -154,16 +151,12 @@ OUTPUT FORMAT:
 
 | Angle Type | subagent_type | model | Tools |
 |-----------|---------------|-------|-------|
-| Web research | `general-purpose` | `opus` | `mcp__exa__web_search_exa`, `WebSearch`, `WebFetch` |
-| Vault search | `Explore` | `opus` | Glob, Grep, Read on vault path |
-| Code examples | `general-purpose` | `opus` | `mcp__grep__searchGitHub` |
-| X Research | `Bash` | `opus` | x-research CLI (see below) |
+| Web research | `delegate_task` | strong | web_search, web_extract, browser when needed |
+| Existing knowledge | `delegate_task` | strong | session_search, search_files, read_file on relevant paths |
+| Code examples | `delegate_task` | strong | GitHub/code search tools available in the environment |
+| Social discourse | `delegate_task` | strong | xurl/xitter or configured social/search tools |
 
-**X Research CLI:**
-```bash
-cd ~/clawd/skills/x-research && source ~/.config/env/global.env
-bun run x-search.ts search "<query>" --quality --quick
-```
+**Social/X research:** use the configured social-search skill/CLI if available; otherwise use web search and clearly label coverage limits.
 
 ### Phase 4: Gap Analysis
 
@@ -179,33 +172,31 @@ After ALL sub-agents return (batch — do not process one-at-a-time to avoid anc
 
 Cross-reference all findings and produce ONE comprehensive document. Do NOT simply concatenate agent outputs — synthesize them into something greater than the sum of parts.
 
-**File location**: `/mnt/c/Users/olled/Documents/Obsidian/Notes/02 - Content/Research/[Topic Folder]/[Document Name] [Year].md`
+**File location**: use the user-specified destination. If absent, save a dated Markdown artifact in the current project/workspace notes or research folder; do not assume a personal vault path.
 
-**Topic folder organization**: Group all research outputs into a topic subfolder within `02 - Content/Research/`. If a research session produces multiple files (master synthesis + companion documents from sub-agents), they ALL go in the same topic folder. Create the folder if it doesn't exist.
+**Topic folder organization**: Group all research outputs into a topic subfolder within the chosen research/notes location. If a research session produces multiple files (master synthesis + companion documents from sub-agents), they ALL go in the same topic folder. Create the folder if it does not exist.
 
 | Research Topic | Folder |
 |---------------|--------|
-| YouTube strategy, algorithm, scripting, titles, SEO, case studies | `Research/YouTube/` |
-| TikTok hooks, growth, scripts, descriptions | `Research/TikTok/` |
-| Meta-prompting, prompt engineering, scriptwriter optimization | `Research/Meta-Prompting/` |
-| New topic that doesn't fit existing folders | `Research/[New Topic Name]/` |
-| One-off research that doesn't warrant its own folder | `Research/Other/` |
+| Existing project topic | reuse the matching research/notes folder |
+| New durable topic | `Research/[Topic Name]/` or project equivalent |
+| One-off research | `Research/Other/` or a clearly named dated note |
 
 **Rules:**
-- ALWAYS check existing folders first (`ls "02 - Content/Research/"`) — use an existing folder if the topic fits
+- ALWAYS check existing folders first — use an existing folder if the topic fits
 - If 3+ files exist on a topic, they deserve their own folder
 - Sub-agent companion files go in the SAME folder as the master synthesis
-- When updating `_Index.md`, group entries under `### Research/[Folder]/` headers
+- When maintaining an index, group entries under clear `Research/[Folder]/` headers
 
 **Document structure**:
 ```markdown
 # [Topic Name] [Year]
 
-Research compiled for @olleai ([niche context]). [N] parallel research tracks synthesized.
+Research compiled for [requester/project context]. [N] parallel research tracks synthesized.
 
 **Purpose**: [What this research will be used for]
 **Date**: [Current date]
-**Sources**: [N] web sources, [N] X posts, [N] vault references, [N] code examples
+**Sources**: [N] web sources, [N] social posts, [N] existing-knowledge references, [N] code examples
 
 ---
 
@@ -223,9 +214,9 @@ Research compiled for @olleai ([niche context]). [N] parallel research tracks sy
 
 ---
 
-## Niche-Specific Applications
+## Domain-Specific Applications
 
-[How findings apply to Olle's AI/tech niche specifically]
+[How findings apply to the requester/project domain specifically]
 
 ---
 
@@ -250,31 +241,30 @@ Research compiled for @olleai ([niche context]). [N] parallel research tracks sy
 - Document exceeds 2,000 words (minimum for "comprehensive")
 - Specific numbers present, not just generalities
 - Concrete examples from real creators/companies included
-- AI/tech niche addressed specifically
+- Target domain/project context addressed specifically
 - Sources attributed throughout
 - Contradictions flagged (not hidden)
-- Olle would learn something genuinely new
+- The requester/project would gain something genuinely useful or new
 
-### Phase 6: Vault Housekeeping
+### Phase 6: Knowledge Housekeeping
 
-After saving, update `_Index.md` if a new file was created in a location not yet indexed.
+After saving, update the relevant index/README if a new file was created in a location not yet indexed.
 
 ## Tools Reference
 
 | Tool | Use For | Notes |
 |------|---------|-------|
-| `mcp__exa__web_search_exa` | Current web information | Best for recent articles, guides |
-| `WebSearch` | Quick web lookups | Good for current events, dates |
-| `mcp__grep__searchGitHub` | Real code patterns from 1M+ repos | Search for actual code, not keywords |
-| `WebFetch` | Deep-dive specific URLs | Use after finding promising links |
-| x-research CLI | X/Twitter discourse | Creator opinions, recent changes |
-| Glob/Grep on vault | Existing vault knowledge | Always check first |
+| web_search / web_extract | Current web information and deep-dive URLs | Prefer primary/current sources |
+| browser | Dynamic pages or pages web_extract cannot read | Use sparingly |
+| GitHub/code search | Real code patterns | Search actual APIs/config, not vague keywords |
+| xurl/xitter/social tools | X/Twitter or social discourse | Use only when configured |
+| session_search/search_files/read_file | Existing knowledge | Always check first |
 
 ## Important Principles
 
-- **Currency**: Algorithms change fast. Emphasize finding current (2026) information. Stale advice is dangerous.
+- **Currency**: Fast-moving topics change quickly. Emphasize current information and date-sensitive claims. Stale advice is dangerous.
 - **Density over length**: 3,000 words with specific numbers > 10,000 words of generic advice.
-- **Build on vault**: Check existing knowledge first. Extend it, don't repeat it.
+- **Build on existing knowledge**: Check memory, prior sessions, project files, and notes first. Extend them, don't repeat them.
 - **WHY multiplier**: Sub-agents knowing WHY produces dramatically better results. Never skip context injection.
 - **MECE or bust**: Overlapping agents waste tokens and produce duplicate content. Boundaries matter.
 - **Batch synthesis**: Collect ALL findings before synthesizing. Processing one-at-a-time creates anchoring bias.
