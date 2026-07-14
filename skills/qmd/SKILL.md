@@ -2,20 +2,16 @@
 name: qmd
 description: Search markdown knowledge bases, notes, and documentation using QMD. Use when users ask to search notes, find documents, or look up information.
 license: MIT
-compatibility: Requires qmd CLI or MCP server. Install via `npm install -g @tobilu/qmd`.
+compatibility: Requires the `qmd` MCP server to be registered. Local or SSH-remote — the skill does not care which.
 metadata:
   author: tobi
-  version: "2.0.0"
-allowed-tools: Bash(qmd:*), mcp__qmd__*
+  version: "2.1.0"
+allowed-tools: mcp__qmd__*
 ---
 
-# QMD - Quick Markdown Search
+# QMD — Hybrid Search over Markdown
 
-Local search engine for markdown content.
-
-## Status
-
-!`qmd status 2>/dev/null || echo "Not installed: npm install -g @tobilu/qmd"`
+Use the `mcp__qmd__*` tools. Whether the index lives on this host or behind an SSH proxy is a deployment detail; the tool surface is identical. If `mcp__qmd__*` tools are not present in your toolset, QMD is not registered on this host — say so and stop. Do not fall back to a `qmd` shell binary.
 
 ## MCP: `query`
 
@@ -114,31 +110,6 @@ Omit to search all collections.
 | `multi_get` | Retrieve multiple by glob/list |
 | `status` | Collections and health |
 
-## CLI
-
-```bash
-qmd query "question"              # Auto-expand + rerank
-qmd query $'lex: X\nvec: Y'       # Structured
-qmd query $'expand: question'     # Explicit expand
-qmd query --json --explain "q"    # Show score traces (RRF + rerank blend)
-qmd search "keywords"             # BM25 only (no LLM)
-qmd get "#abc123"                 # By docid
-qmd multi-get "journals/2026-*.md" -l 40  # Batch pull snippets by glob
-qmd multi-get notes/foo.md,notes/bar.md   # Comma-separated list, preserves order
-```
-
-## HTTP API
-
-```bash
-curl -X POST http://localhost:8181/query \
-  -H "Content-Type: application/json" \
-  -d '{"searches": [{"type": "lex", "query": "test"}]}'
-```
-
 ## Setup
 
-```bash
-npm install -g @tobilu/qmd
-qmd collection add ~/notes --name notes
-qmd embed
-```
+QMD is registered as an MCP server (`qmd`) in this host's MCP config. No local binary, no HTTP endpoint, no shell fallbacks — every interaction goes through `mcp__qmd__*`. If the tools are missing, ask the host operator to register the `qmd` MCP; do not attempt to install a local CLI.
