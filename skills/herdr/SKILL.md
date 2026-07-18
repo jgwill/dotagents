@@ -305,11 +305,26 @@ if it is still `idle`, read the pane: the prompt is probably sitting un-submitte
 
 **3. freshly created panes lose early keystrokes.** a new pane's shell takes a moment to initialize; text sent immediately after `split` / `tab create` can be partially eaten or echoed without executing. wait for the shell prompt to render (`wait output`, or read the pane) before the first `run`.
 
+**4. approval dialogs stall agents silently.** even a generous pre-approved tool list will not cover everything: commands with shell expansions (`$(…)`, variables), compound chains, or novel subcommands still raise an approval dialog, and the agent sits `blocked` until someone answers — a mission can stall for an hour on one unanswered "Do you want to proceed?". treat `blocked` as a first-class state you own as orchestrator:
+
+- launch agent panes with the permission mode the mission actually needs (a launcher script holding the flags), instead of discovering mid-mission that the default nags.
+- `wait agent-status <pane> --status blocked` is a valid wake signal, exactly like `done`.
+- a poll loop can auto-answer *permission* dialogs — they contain "Do you want to proceed?"; prefer the "don't ask again for:" option when offered so the same command shape never asks twice. never auto-answer a dialog that is not a permission prompt: an agent asking a real question deserves a real answer.
+
+```bash
+# auto-approve permission dialogs on agent panes (poll-loop core)
+txt=$(herdr pane read "$pane" --source visible --lines 25)
+if echo "$txt" | grep -q "Do you want to proceed?"; then
+  if echo "$txt" | grep -q "ask again"; then herdr pane send-keys "$pane" 2
+  else herdr pane send-keys "$pane" 1; fi
+fi
+```
+
 ### orchestrating several agents (the loop that works)
 
 1. create panes; per pane: `cd` (verify cwd in the prompt line) → launch the agent via a launcher script → wait for the REPL to render.
 2. send the task prompt → `send-keys Enter` → confirm `agent_status` is `working`.
-3. watch with `wait agent-status <pane> --status done` (long timeout). `done` means finished and not yet looked at; reading the pane acknowledges it.
+3. watch with `wait agent-status <pane> --status done` (long timeout). `done` means finished and not yet looked at; reading the pane acknowledges it. watch `blocked` in parallel (or run an auto-approver poll loop — see failure mode 4) so a permission dialog never stalls the mission.
 4. on wake: read the pane tail or the agent's report file, verify its claims yourself (run the tests), then continue.
 
 when several agents work one repo, give them strict file ownership and a shared handoff file on disk — pane text is for driving, files are for coordination.
