@@ -274,8 +274,10 @@ herdr pane read 1-3 --source recent-unwrapped --lines 40
 ```bash
 herdr pane split 1-2 --direction right --no-focus
 herdr pane run 1-3 "claude"
-herdr wait output 1-3 --match ">" --timeout 15000
+herdr wait output 1-3 --match "shortcuts|Welcome" --regex --timeout 30000
 herdr pane run 1-3 "review the test coverage in src/api/"
+herdr pane send-keys 1-3 Enter    # agent TUIs often swallow the Enter that pane run appends — see "driving agent panes reliably"
+herdr pane list                    # confirm the pane's agent_status is now "working"
 ```
 
 ### coordinate with another agent
@@ -284,6 +286,33 @@ herdr pane run 1-3 "review the test coverage in src/api/"
 herdr wait agent-status 1-1 --status done --timeout 120000
 herdr pane read 1-1 --source recent --lines 100
 ```
+
+## driving agent panes reliably
+
+sends are fire-and-forget: `send-text`, `send-keys`, and `run` print nothing on success and give no delivery guarantee. when a send matters, verify it landed — read the pane or check `agent_status`. three failure modes recur in real orchestration:
+
+**1. agent TUIs swallow the Enter that `pane run` appends.** interactive agent REPLs (claude code and similar) treat rapidly-injected text as a paste; the trailing Enter gets absorbed into the composer instead of submitting, and the prompt sits there while the agent stays `idle`. after sending a prompt to an agent pane, always follow with an explicit Enter, then confirm the agent actually started:
+
+```bash
+herdr pane run 1-3 "review the test coverage in src/api/"
+herdr pane send-keys 1-3 Enter
+herdr pane list   # this pane's agent_status must now be "working", not "idle"
+```
+
+if it is still `idle`, read the pane: the prompt is probably sitting un-submitted in the composer — send Enter again rather than re-sending the text (re-sending duplicates the prompt).
+
+**2. long compound strings can arrive clipped.** a long `cd /path && long-command` sent with `pane run` can arrive as just the trailing command, silently running in the wrong cwd. send `cd` as its own `run`, verify the prompt line shows the new cwd, then send the command. for genuinely long invocations (agent CLIs with many flags), write a small launcher script and send `bash path/to/launch.sh` instead of the flag soup.
+
+**3. freshly created panes lose early keystrokes.** a new pane's shell takes a moment to initialize; text sent immediately after `split` / `tab create` can be partially eaten or echoed without executing. wait for the shell prompt to render (`wait output`, or read the pane) before the first `run`.
+
+### orchestrating several agents (the loop that works)
+
+1. create panes; per pane: `cd` (verify cwd in the prompt line) → launch the agent via a launcher script → wait for the REPL to render.
+2. send the task prompt → `send-keys Enter` → confirm `agent_status` is `working`.
+3. watch with `wait agent-status <pane> --status done` (long timeout). `done` means finished and not yet looked at; reading the pane acknowledges it.
+4. on wake: read the pane tail or the agent's report file, verify its claims yourself (run the tests), then continue.
+
+when several agents work one repo, give them strict file ownership and a shared handoff file on disk — pane text is for driving, files are for coordination.
 
 ## notes
 
