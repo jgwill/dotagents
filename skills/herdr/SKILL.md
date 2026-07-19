@@ -23,6 +23,46 @@ the `herdr` binary is available in your PATH. its workspace, tab, pane, and wait
 
 if you need the raw protocol or full api reference, read the [socket api docs](https://herdr.dev/docs/socket-api/).
 
+## survey before you dispatch — mandatory
+
+before spawning an agent, creating a workspace/tab for a topic, or writing a mission brief for another agent, **look**. spawning is the last step, not the first.
+
+run all four. do not skip one because the topic "feels new":
+
+```bash
+herdr workspace list          # is a workspace already labeled for this topic?
+herdr pane list               # which agents are live, and what are they doing?
+tmux ls; for u in <other users>; do sudo -n -u "$u" tmux ls; done   # herdr is not the only multiplexer on the box
+ls /tmp/*<topic>* 2>/dev/null # are the deliverables already written?
+```
+
+then, on **every** match:
+
+```bash
+herdr agent read <pane> --source recent --lines 120
+```
+
+read what it concluded. an agent that is `idle`, `done`, or sitting at a prompt is **not spare capacity** — it may be a finished piece of work nobody has collected, or an agent stopped mid-task waiting on a human's answer. dispatching a second agent at that topic destroys the first one's result and asks the human the same question twice.
+
+### never assert unverified facts in a brief
+
+every commit hash, file path, branch name, and divergence count you put in a mission brief must come from command output you read **in the same turn** you write it. do not carry facts forward from an earlier turn, another agent's summary, or memory.
+
+a brief that opens with "context already verified" and contains a hash that `git cat-file -t` rejects is a fabrication. the receiving agent cannot tell your invented hash from a real one, so it acts on it and writes the fiction into its own output as provenance. this is unrecoverable downstream: bad provenance is indistinguishable from good provenance once it is written.
+
+if you have not run the command, write "unverified" next to the claim, or leave it out.
+
+### prefer messaging a live lane over spawning its twin
+
+if a lane already exists for the topic, talk to it:
+
+```bash
+herdr agent send <pane> "<your message>"
+herdr pane send-keys <pane> Enter
+```
+
+duplicate lanes are a coordination defect, not extra coverage. two agents on one topic produce two partial truths and no owner.
+
 ## concepts
 
 **workspaces** are project contexts. each workspace has one or more tabs. unless manually renamed, a workspace's label follows the first tab's root pane — usually the repo name, otherwise the root pane's current folder name.
@@ -39,7 +79,7 @@ if you need the raw protocol or full api reference, read the [socket api docs](h
 
 plain shells still exist as panes, but herdr's sidebar agent section intentionally focuses on detected agents rather than listing every shell.
 
-**ids** — workspace ids look like `1`, `2`. tab ids look like `1:1`, `1:2`, `2:1`. pane ids look like `1-1`, `1-2`, `2-1`. these are compact public ids for the current live session.
+**ids** — as of herdr 0.7.4 (live-verified 2026-07-16, ep137 smoke): workspace ids look like `w1`, `w2`; tab ids like `w1:t1`; pane ids like `w1:p1`, `w1:p2`. (Earlier versions of this doc said `1`, `1:1`, `1-1` — the dashed pane form does not match live herdr 0.7.) Pane rows carry `terminal_title`/`terminal_title_stripped` (no `title` field); a `label` field appears only after `herdr pane rename`. These are compact public ids for the current live session.
 
 important: ids can compact when tabs, panes, or workspaces are closed. do not treat them as durable ids. re-read ids from `workspace list`, `tab list`, `pane list`, or create/split responses when you need a current id. do not guess that an older `1-3` is still the same pane later.
 
