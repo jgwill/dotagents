@@ -37,9 +37,31 @@ UNITE="$STATE/episodes-unite.txt"                         # dernier ep-NNN ouver
 LOCK="$STATE/episodes-numero.lock"                        # deux veilles ne réclament pas le même numéro
 FENETRE=5400                                              # 90 min : un même dépôt-séance reste un seul épisode
 
-export PIXEL_RECORDER_URL="${PIXEL_RECORDER_URL:-https://localhost:8778}"
+# NE PAS hériter. Ce crochet range dans l'atelier episodes et nulle part
+# ailleurs. Le 2026-08-05, appelé depuis un shell où PIXEL_RECORDER_URL valait
+# 8768, il a interrogé l'atelier jamai, n'y a trouvé aucun ep-NNN, et y a
+# fabriqué ep-001, ep-002 et ep-003 — trois coquilles dans le mauvais atelier,
+# dont une portant une vidéo de guitare. Un crochet d'atelier fixe son portail.
+PIXEL_RECORDER_URL="${EPISODES_PORTAL:-https://localhost:8778}"
+export PIXEL_RECORDER_URL
+
+# Garde-fou : refuser de travailler si le portail joint n'est pas episodes.
+_ws="$(curl -sk --max-time 10 "$PIXEL_RECORDER_URL/" 2>/dev/null \
+       | grep -o 'data-current-workspace="[^"]*"' | head -1 | cut -d'"' -f2)"
+if [ "${_ws:-}" != "episodes" ]; then
+  echo "REFUS : $PIXEL_RECORDER_URL sert l'atelier « ${_ws:-injoignable} », pas episodes. Rien fait." >&2
+  exit 1
+fi
 
 mkdir -p "$OUT" "$STATE/drops-episodes"
+
+# Refus net : un fichier que l'atelier a produit lui-même n'est pas un dépôt.
+# La veille le filtre déjà, mais le crochet ne doit pas dépendre de son appelant
+# — appelé à la main le 2026-08-05, il a ouvert un episode sur notre propre audio.
+if grep -qxF "$(basename "$F")" "$HOME/.local/state/episode-voice/episodes-mine.txt" 2>/dev/null; then
+  echo "$(basename "$F") est une production de l'atelier, pas un dépôt. Rien fait."
+  exit 0
+fi
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"; rmdir "$LOCK" 2>/dev/null || true' EXIT
 
 : > "$OUT/verdict.txt"
@@ -67,15 +89,29 @@ cen=$(sed -n 's/^centroïde spectral *: *\([0-9]*\) Hz/\1/p' "$OUT/mesure.txt" |
 sub=$(sed -n 's/^ *0– *250 Hz *: *\([0-9.]*\) %.*/\1/p'     "$OUT/mesure.txt" | head -1)
 dur=$(sed -n 's/^durée *: *\([0-9.]*\) s.*/\1/p'            "$OUT/mesure.txt" | head -1)
 
-# Le discriminant fiable est le GRAVE, pas le médium. Mesuré sur les dépôts de
-# la séance : parole 13,8 / 17,6 / 37,6 % sous 250 Hz ; fredon 73,1 %. Le seuil
-# médium (>60 %) avait classé une consigne parlée en musique à 53,3 %.
-kind=musique
-awk "BEGIN{exit !(${sub:-100} < 50 && ${cen:-0} > 350)}" && kind=parole
+# LE SPECTRE NE SÉPARE PAS LA PAROLE DU CHANT. Établi le 2026-08-05 sur les
+# sept dépôts réels de Jerry, et c'est un revirement : deux seuils successifs
+# ont été essayés et les deux ont refusé un vrai dépôt.
+#
+#   consigne parlée, 8,7 s   → 342 Hz de centroïde, 42,6 % sous 250 Hz
+#   chant, 7,6 s             → 465 Hz              , 38,8 %
+#
+# Le chant est PLUS aigu et PLUS clair que la parole. Aucune ligne ne passe
+# entre les deux. La densité de mots ne tranche pas non plus : 1,38 mot/s pour
+# la consigne, 1,3 pour le chant.
+#
+# Donc on ne classe plus ici. On transcrit, et c'est le CONTENU qui décide —
+# une transcription qui ne porte pas de mots ne range rien. La mesure reste
+# écrite dans mesure.txt : elle informe, elle ne juge plus.
+kind=parole
+[ "${sub:-0}" != "" ] && awk "BEGIN{exit !(${sub:-0} > 65 && ${cen:-999} < 260)}" && kind=musique
 
 if [ "$kind" != parole ]; then
-  dire "MUSIQUE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz."
-  dire "Pas rangé en épisode : un épisode se range sur ce qui est dit."
+  # Un seul cas reste écarté sans transcription : le grave massif et sourd d'un
+  # fredon ou d'un bourdon — 73,1 % sous 250 Hz et 217 Hz de centroïde sur le
+  # fredon de Jerry. Aucune parole mesurée n'approche ces deux valeurs à la fois.
+  dire "MUSIQUE TENUE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz."
+  dire "Pas rangé en épisode : aucune parole possible à ce grave-là."
   dire "Mesure : $OUT/mesure.txt"
   exit 0
 fi
@@ -123,7 +159,61 @@ while ! mkdir "$LOCK" 2>/dev/null; do
 done
 
 slug=""
-if [ -s "$UNITE" ]; then
+
+# --- 3a. la destination que Jerry a dite, si elle est dite ------------------
+# UNE SEULE GARDE, et c'est un revirement mesuré. J'en avais posé deux ; la
+# seconde — « ne lire que de la PAROLE » — a été retirée le 2026-08-05 après
+# mesure, parce qu'elle refusait le seul cas qui comptait.
+#
+# Le seuil spectral ne sépare pas la parole du chant. Mesuré sur sept dépôts
+# réels : la consigne de 8,7 s « mets ça dans l'épisode 9 » sort à 342 Hz de
+# centroïde et 42,6 % sous 250 Hz, tandis que le chant de 7,6 s sort à 465 Hz
+# et 38,8 % — le chant est PLUS aigu et PLUS clair que la parole. Aucune ligne
+# ne passe entre les deux. La densité de mots ne tranche pas davantage : 1,38
+# mot/s pour la consigne, 1,3 pour le chant.
+#
+# Mais la garde était inutile : le lecteur de destination EST son propre
+# filtre. Il n'accepte que des formules explicites — « épisode 9 », « pars un
+# opus ». L'hallucination de Whisper sur une piste instrumentale (« Sous-titrage
+# Société Radio-Canada », vérifié sur la feuille capo et sur le canon) n'en
+# contient aucune et ressort en « courant ». Le bruit se filtre tout seul.
+#
+# Reste la garde qui, elle, est nécessaire : ne jamais obéir à notre propre
+# voix. Nos audios disent « épisode 9 » parce que c'est nous qui l'avons écrit.
+MINE="$STATE/episodes-mine.txt"
+DEST="$ED/destination-du-depot"
+if [ -x "$DEST" ] && [ -s "$OUT/texte.txt" ] \
+   && ! grep -qxF "$(basename "$F")" "$MINE" 2>/dev/null; then
+  lu="$("$DEST" "$OUT/texte.txt" 2>/dev/null | head -1)"
+  genre="$(printf '%s' "$lu" | cut -f1)"
+  valeur="$(printf '%s' "$lu" | cut -f2)"
+  raison="$(printf '%s' "$lu" | cut -f3)"
+  case "$genre" in
+    unite)
+      case "$valeur" in
+        ep-*)
+          reel="$(curl -sk --max-time 15 "$PIXEL_RECORDER_URL/api/compositions" \
+            | python3 -c '
+import json,sys
+p=sys.argv[1]
+for c in json.load(sys.stdin):
+    if c.get("slug","").startswith(p): print(c["slug"]); break' "$valeur" 2>/dev/null)"
+          if [ -n "$reel" ]; then
+            slug="$reel"; dire "DESTINATION DITE — $raison → $slug"
+          else
+            dire "DESTINATION DITE — $raison, mais $valeur n'existe pas encore."
+            dire "  Je ne le crée pas : ouvrir un épisode qu'il a nommé sans qu'il existe est un jugement."
+          fi ;;
+        *)
+          dire "DESTINATION DITE — $raison → $valeur : un autre atelier. Rien rangé ici." ;;
+      esac ;;
+    neuf)
+      dire "DESTINATION DITE — $raison : il demande une unité neuve." ;;
+    *) : ;;
+  esac
+fi
+
+if [ -z "$slug" ] && [ -s "$UNITE" ]; then
   read -r prev_slug prev_ts < "$UNITE" || true
   now=$(date +%s)
   if [ -n "${prev_slug:-}" ] && [ $(( now - ${prev_ts:-0} )) -lt "$FENETRE" ]; then
