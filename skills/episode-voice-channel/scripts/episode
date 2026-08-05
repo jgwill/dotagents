@@ -20,6 +20,16 @@ current_workspace() {
     | sed 's/.*="//; s/"//' || true
 }
 
+# Tout fichier que NOUS importons dans l'atelier. Les veilles le lisent pour ne
+# pas se reveiller sur leur propre sortie. Sans lui, un audio depose par `say`
+# est vu comme un depot neuf : le 2026-08-05 deux audios envoyes dans ep-009 ont
+# ainsi fabrique ep-010 et ep-011, vides et sans titre.
+mine_file() {
+  local ws; ws="$(current_workspace)"; ws="${ws:-main}"
+  printf '%s/%s-mine.txt' "$STATE_DIR" "$ws"
+}
+note_mine() { [ -n "${1:-}" ] && printf '%s\n' "$1" >> "$(mine_file)"; }
+
 ledger_file() {
   local ws; ws="$(current_workspace)"; ws="${ws:-main}"
   mkdir -p "$STATE_DIR"
@@ -187,6 +197,7 @@ cmd_say() {
 
   # Remember what we said, so `listen` never transcribes our own voice back.
   printf '%s\n' "$filename" >> "$(ledger_file)"
+  note_mine "$filename"
 
   if [ -n "$slug" ]; then
     [ -n "$label" ] || label="🔊 ${persona} — $(date '+%H:%M')"
@@ -447,6 +458,7 @@ cmd_video() {
     | python3 -c 'import json,sys; print(json.load(sys.stdin).get("filename",""))')"
   [ -n "$built" ] && rm -f "$built"
   [ -n "$filename" ] || die "import failed"
+  note_mine "$filename"
 
   [ -n "$label" ] || label="🎬 video — $(date '+%H:%M')"
   local out
