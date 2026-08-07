@@ -1,0 +1,450 @@
+<!--
+  foundation-visualization · artifact template
+  ────────────────────────────────────────────────────────────────────────
+  ARTIFACT CONTRACT: this file is CONTENT-ONLY. It is <title> + <style> + body
+  markup, with NO <!doctype>, <html>, <head>, or <body> tags of its own — the
+  Artifact publish step wraps it. Keep it that way.
+
+  HOW TO USE (agent, filling from a foundations/<topic>/ packet):
+    1. Replace every {{SLOT}} with real packet content (see SKILL.md mapping).
+    2. CENTERPIECE: keep exactly ONE of the two <section data-centerpiece> blocks
+       below (radial-loop OR field-constellation) per the archetype rule in
+       SKILL.md; delete the other. Two more archetypes (pipeline, tension-arc,
+       layered-stack) are described in SKILL.md — compose them by editing the
+       kept block; the token system and node/ring classes already support them.
+    3. Repeat the .chip, .field, and .ref elements as many times as the packet
+       has metadata rows / fields / issue refs. Delete unused example rows.
+    4. Do NOT invent fields. If the packet lacks a slot's source, remove that
+       slot (e.g. drop the "entity" chip if there is no related entity).
+
+  CSP-SAFE: no external fonts, scripts, or images. System font stacks only.
+  THEME-AWARE: light baseline + prefers-color-scheme dark + data-theme override.
+  MOTION: the only animation (ring pulse) is disabled under prefers-reduced-motion.
+
+  COLOR NOTE: --monitor/--analyze/--plan/--execute are a four-direction
+  "medicine-wheel" palette (East / South / West / North). In a radial-loop they
+  name MAPE-K stages; in any other archetype they are a meaningful 4-way field
+  rotation. --gold is the knowledge / provenance / "reused" hue throughout.
+-->
+<title>{{TOPIC_TITLE}} — Foundation</title>
+<style>
+  :root {
+    /* light baseline — blue-biased neutrals, not flat grey */
+    --bg: #f5f7f9;
+    --panel: #ffffff;
+    --panel-2: #eef1f6;
+    --ink: #171b24;
+    --ink-dim: #4d5566;
+    --ink-faint: #8b94a6;
+    --line: #e1e6ee;
+    --accent: #0e8fc0;
+    --gold: #a9781f;
+    --monitor: #0e8fc0;
+    --analyze: #6d4fe0;
+    --plan: #a9781f;
+    --execute: #128a5f;
+    --knowledge: #171b24;
+    --shadow: 0 1px 2px rgba(20,25,35,.06), 0 8px 24px rgba(20,25,35,.06);
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d13;
+      --panel: #141824;
+      --panel-2: #1b2130;
+      --ink: #e7e9ef;
+      --ink-dim: #9aa2b2;
+      --ink-faint: #646c7e;
+      --line: #262c3a;
+      --accent: #43c7f0;
+      --gold: #d9a94a;
+      --monitor: #43c7f0;
+      --analyze: #a487f5;
+      --plan: #d9a94a;
+      --execute: #4fd39a;
+      --knowledge: #e7e9ef;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0d13; --panel: #141824; --panel-2: #1b2130;
+    --ink: #e7e9ef; --ink-dim: #9aa2b2; --ink-faint: #646c7e; --line: #262c3a;
+    --accent: #43c7f0; --gold: #d9a94a;
+    --monitor: #43c7f0; --analyze: #a487f5; --plan: #d9a94a; --execute: #4fd39a; --knowledge: #e7e9ef;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f7f9; --panel: #ffffff; --panel-2: #eef1f6;
+    --ink: #171b24; --ink-dim: #4d5566; --ink-faint: #8b94a6; --line: #e1e6ee;
+    --accent: #0e8fc0; --gold: #a9781f;
+    --monitor: #0e8fc0; --analyze: #6d4fe0; --plan: #a9781f; --execute: #128a5f; --knowledge: #171b24;
+    --shadow: 0 1px 2px rgba(20,25,35,.06), 0 8px 24px rgba(20,25,35,.06);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 600px at 50% -8%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: clamp(28px, 5vw, 72px) clamp(18px, 4vw, 40px) 96px; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  h1 {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(30px, 6vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    margin: 18px 0 0;
+  }
+  .thesis {
+    font-size: clamp(19px, 2.6vw, 26px);
+    color: var(--ink-dim);
+    max-width: 34ch;
+    margin: 16px 0 0;
+    text-wrap: balance;
+  }
+  .thesis b { color: var(--ink); font-weight: 600; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+  .chip {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--ink-dim);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 11px; background: var(--panel);
+    display: inline-flex; gap: 7px; align-items: center;
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .chip .swatch { width: 8px; height: 8px; border-radius: 2px; }
+
+  section { margin-top: clamp(48px, 7vw, 84px); }
+  .sec-head { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 18px; }
+
+  /* ── Centerpiece card (shared by every archetype) ─────────────── */
+  .center-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    padding: clamp(12px, 3vw, 28px);
+    overflow: hidden;
+  }
+  .center-wrap { display: grid; place-items: center; }
+  svg.diagram { width: 100%; height: auto; max-width: 620px; display: block; }
+
+  .ring { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 2 7; stroke-linecap: round; }
+  .flow-dot { fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+  .spin { transform-origin: 300px 300px; animation: spin 9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pulse { transform-origin: 300px 300px; animation: pulse 4.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+  .spoke { stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 2 7; fill: none; }
+
+  .node-body { fill: var(--panel-2); stroke-width: 2; }
+  .node-k { fill: color-mix(in oklab, var(--gold) 14%, var(--panel-2)); stroke: var(--gold); stroke-width: 2; }
+  .n-mon { stroke: var(--monitor); } .n-ana { stroke: var(--analyze); }
+  .n-pla { stroke: var(--plan); }    .n-exe { stroke: var(--execute); }
+
+  text { font-family: var(--font-mono); }
+  .dir  { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; }
+  .d-mon { fill: var(--monitor); } .d-ana { fill: var(--analyze); }
+  .d-pla { fill: var(--plan); }    .d-exe { fill: var(--execute); } .d-k { fill: var(--gold); }
+  .stage { fill: var(--ink); font-size: 18px; font-weight: 700; }
+  .role  { fill: var(--ink-dim); font-size: 12px; font-family: var(--font-sans); }
+  .io    { fill: var(--ink-faint); font-size: 11px; letter-spacing: .04em; }
+  .io-arrow { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+
+  /* ── Structural tension ───────────────────────────── */
+  .tension { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; }
+  @media (max-width: 640px) { .tension { grid-template-columns: 1fr; } .tension .arrow { transform: rotate(90deg); } }
+  .state { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); }
+  .state .lab { font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); }
+  .state.now .lab { color: var(--plan); }
+  .state.want { border-color: color-mix(in oklab, var(--execute) 40%, var(--line)); }
+  .state.want .lab { color: var(--execute); }
+  .state p { margin: 10px 0 0; color: var(--ink); font-size: 15.5px; }
+  .arrow { display: grid; place-items: center; color: var(--ink-faint); font-family: var(--font-mono); font-size: 22px; }
+
+  /* ── Fields ───────────────────────────────────────── */
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  .field { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); position: relative; }
+  .field::before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--fc, var(--accent)); }
+  .field h3 { font-family: var(--font-mono); font-size: 14.5px; margin: 0 0 6px; padding-left: 12px; color: var(--ink); }
+  .field p { margin: 0 0 0 12px; font-size: 13.5px; color: var(--ink-dim); }
+  .field .tag { position: absolute; top: 14px; right: 14px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-faint); }
+  .field .tag.grounded { color: var(--accent); border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+  .field .tag.reused { color: var(--gold); border-color: color-mix(in oklab, var(--gold) 45%, var(--line)); }
+
+  /* ── Provenance / source-ledger summary ───────────── */
+  .prov { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .src { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-dim); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--panel); }
+  .src b { color: var(--ink); font-weight: 600; }
+  .src .f { color: var(--ink-faint); }
+
+  /* ── Optional pipeline strip (pipeline archetype, or a secondary flow) ─ */
+  .pipe { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .step { flex: 1 1 120px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; box-shadow: var(--shadow); }
+  .step .k { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: .04em; }
+  .step .v { font-size: 12.5px; color: var(--ink-dim); margin-top: 4px; }
+  .step.gate { border-color: color-mix(in oklab, var(--gold) 40%, var(--line)); }
+  .step.gate .k { color: var(--gold); }
+
+  /* ── Footer ───────────────────────────────────────── */
+  footer { margin-top: clamp(48px, 7vw, 84px); border-top: 1px solid var(--line); padding-top: 24px; }
+  .paths { display: grid; gap: 8px; }
+  .path { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-dim); word-break: break-all; }
+  .path b { color: var(--ink); font-weight: 600; }
+  .refs { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+  .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-dim); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; background: var(--panel); }
+  .foot-note { margin-top: 18px; font-size: 12.5px; color: var(--ink-faint); }
+
+  @media (prefers-reduced-motion: reduce) { .spin, .pulse { animation: none; } }
+</style>
+
+<div class="wrap">
+  <!-- ── HERO ─────────────────────────────────────────────────────── -->
+  <header>
+    <div class="eyebrow"><span class="dot"></span> {{EYEBROW}}</div>
+    <h1>{{TOPIC_TITLE}}</h1>
+    <p class="thesis">{{THESIS}}</p>
+    <!-- META CHIPS — one .chip per real metadata row; delete any the packet lacks -->
+    <div class="meta">
+      <span class="chip"><b>{{DATE}}</b></span>
+      <span class="chip">tracking <b>{{TRACKING_ISSUE}}</b></span>
+      <span class="chip">entity <b>{{RELATED_ENTITY_OR_SPEC}}</b></span>
+      <span class="chip">verification <b>{{VERIFICATION_STATUS}}</b></span>
+      <span class="chip">status <b>{{PACKET_STATUS}}</b></span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       CENTERPIECE — KEEP EXACTLY ONE of the two sections below.
+       Choose per the archetype rule in SKILL.md, then delete the other.
+       ══════════════════════════════════════════════════════════════════ -->
+
+  <!-- ░░ VARIANT A · RADIAL-LOOP ░░ (packet describes a named cycle: MAPE-K,
+       OODA, an autonomic loop, a four-direction cadence that returns to start.
+       Generalizes to 3–6 stage nodes + an optional core; here shown as the
+       4-stage MAPE-K + Knowledge core from the exemplar.) -->
+  <section data-centerpiece="radial-loop">
+    <div class="sec-head">{{CENTERPIECE_HEADING}}</div>
+    <div class="center-card">
+      <div class="center-wrap">
+        <svg class="diagram" viewBox="0 0 600 600" role="img" aria-label="{{DIAGRAM_ALT}}">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-faint)"></path>
+            </marker>
+          </defs>
+
+          <!-- ring + travelling pulse (pulse = "this is a loop") -->
+          <circle class="ring" cx="300" cy="300" r="196"></circle>
+          <g class="spin"><circle class="flow-dot" cx="496" cy="300" r="6"></circle></g>
+
+          <!-- optional IO arrows: input in (right), output out (top) -->
+          <path class="io-arrow" d="M592,300 L556,300"></path>
+          <text class="io" x="588" y="286" text-anchor="end">{{IO_IN_1}}</text>
+          <text class="io" x="588" y="322" text-anchor="end">{{IO_IN_2}}</text>
+          <path class="io-arrow" d="M300,44 L300,8"></path>
+          <text class="io" x="316" y="30" text-anchor="start">{{IO_OUT}}</text>
+
+          <!-- Core (optional — the "K" / knowledge / model the loop turns around) -->
+          <circle class="node-k" cx="300" cy="300" r="66"></circle>
+          <text class="dir d-k" x="300" y="292" text-anchor="middle">{{CORE_LABEL}}</text>
+          <text class="role" x="300" y="312" text-anchor="middle">{{CORE_ROLE}}</text>
+
+          <!-- Stage nodes at cardinal points (r=196). For 3/5/6 stages, use the
+               coordinate table in the constellation variant below. -->
+          <circle class="node-body n-mon" cx="496" cy="300" r="62"></circle>
+          <text class="dir d-mon" x="496" y="284" text-anchor="middle">{{STAGE1_DIR}}</text>
+          <text class="stage" x="496" y="306" text-anchor="middle">{{STAGE1}}</text>
+          <text class="role" x="496" y="324" text-anchor="middle">{{STAGE1_ROLE}}</text>
+
+          <circle class="node-body n-ana" cx="300" cy="496" r="62"></circle>
+          <text class="dir d-ana" x="300" y="480" text-anchor="middle">{{STAGE2_DIR}}</text>
+          <text class="stage" x="300" y="502" text-anchor="middle">{{STAGE2}}</text>
+          <text class="role" x="300" y="520" text-anchor="middle">{{STAGE2_ROLE}}</text>
+
+          <circle class="node-body n-pla" cx="104" cy="300" r="62"></circle>
+          <text class="dir d-pla" x="104" y="284" text-anchor="middle">{{STAGE3_DIR}}</text>
+          <text class="stage" x="104" y="306" text-anchor="middle">{{STAGE3}}</text>
+          <text class="role" x="104" y="324" text-anchor="middle">{{STAGE3_ROLE}}</text>
+
+          <circle class="node-body n-exe" cx="300" cy="104" r="62"></circle>
+          <text class="dir d-exe" x="300" y="88" text-anchor="middle">{{STAGE4_DIR}}</text>
+          <text class="stage" x="300" y="110" text-anchor="middle">{{STAGE4}}</text>
+          <text class="role" x="300" y="128" text-anchor="middle">{{STAGE4_ROLE}}</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ░░ VARIANT B · FIELD-CONSTELLATION ░░ (packet is a set of N co-equal
+       fields with cross-references but no inherent cycle or order — the safe
+       default). Central core = the packet/topic; N field nodes on a ring,
+       joined to the core by faint spokes. No spin (not a loop); a gentle core
+       pulse instead. Grounded fields → colored stroke (node-body); reused
+       fields → gold-tinted (node-k), echoing the field cards below.
+
+       NODE COORDINATES on ring r=196, center (300,300), first node at top,
+       even clockwise spacing — copy the row for your field count:
+         N=3: (300,104) (470,398) (130,398)
+         N=4: (300,104) (496,300) (300,496) (104,300)
+         N=5: (300,104) (486,239) (415,459) (185,459) (114,239)
+         N=6: (300,104) (470,202) (470,398) (300,496) (130,398) (130,202)
+       Below is the N=5 stub; add/remove <g> node groups to match. -->
+  <section data-centerpiece="field-constellation">
+    <div class="sec-head">{{CENTERPIECE_HEADING}}</div>
+    <div class="center-card">
+      <div class="center-wrap">
+        <svg class="diagram" viewBox="0 0 600 600" role="img" aria-label="{{DIAGRAM_ALT}}">
+          <circle class="ring" cx="300" cy="300" r="196"></circle>
+          <!-- spokes: core → each node -->
+          <line class="spoke" x1="300" y1="300" x2="300" y2="104"></line>
+          <line class="spoke" x1="300" y1="300" x2="486" y2="239"></line>
+          <line class="spoke" x1="300" y1="300" x2="415" y2="459"></line>
+          <line class="spoke" x1="300" y1="300" x2="185" y2="459"></line>
+          <line class="spoke" x1="300" y1="300" x2="114" y2="239"></line>
+
+          <!-- core = the packet / topic -->
+          <g class="pulse"><circle class="node-k" cx="300" cy="300" r="60"></circle></g>
+          <text class="dir d-k" x="300" y="296" text-anchor="middle">{{CORE_LABEL}}</text>
+          <text class="role" x="300" y="316" text-anchor="middle">{{CORE_ROLE}}</text>
+
+          <!-- field node 1 (top) — grounded example -->
+          <circle class="node-body n-mon" cx="300" cy="104" r="58"></circle>
+          <text class="stage" x="300" y="100" text-anchor="middle">{{FIELD1_SHORT}}</text>
+          <text class="role" x="300" y="120" text-anchor="middle">{{FIELD1_TAG}}</text>
+
+          <!-- field node 2 — grounded example -->
+          <circle class="node-body n-ana" cx="486" cy="239" r="58"></circle>
+          <text class="stage" x="486" y="235" text-anchor="middle">{{FIELD2_SHORT}}</text>
+          <text class="role" x="486" y="255" text-anchor="middle">{{FIELD2_TAG}}</text>
+
+          <!-- field node 3 — reused example (gold-tinted core style) -->
+          <circle class="node-k" cx="415" cy="459" r="58"></circle>
+          <text class="stage" x="415" y="455" text-anchor="middle">{{FIELD3_SHORT}}</text>
+          <text class="role" x="415" y="475" text-anchor="middle">{{FIELD3_TAG}}</text>
+
+          <!-- field node 4 — reused example -->
+          <circle class="node-k" cx="185" cy="459" r="58"></circle>
+          <text class="stage" x="185" y="455" text-anchor="middle">{{FIELD4_SHORT}}</text>
+          <text class="role" x="185" y="475" text-anchor="middle">{{FIELD4_TAG}}</text>
+
+          <!-- field node 5 — reused example -->
+          <circle class="node-k" cx="114" cy="239" r="58"></circle>
+          <text class="stage" x="114" y="235" text-anchor="middle">{{FIELD5_SHORT}}</text>
+          <text class="role" x="114" y="255" text-anchor="middle">{{FIELD5_TAG}}</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STRUCTURAL TENSION (current reality → desired outcome) ────── -->
+  <section>
+    <div class="sec-head">Structural tension</div>
+    <div class="tension">
+      <div class="state now">
+        <div class="lab">Current reality</div>
+        <p>{{CURRENT_REALITY}}</p>
+      </div>
+      <div class="arrow">&rarr;</div>
+      <div class="state want">
+        <div class="lab">Desired outcome</div>
+        <p>{{DESIRED_OUTCOME}}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FIELD CARDS ──────────────────────────────────────────────── -->
+  <!-- One .field per row of the packet's "Fields covered" table.
+       tag = "grounded" (researched here) or "reused" (crosswalked).
+       --fc rotates the medicine-wheel palette: monitor / analyze / plan /
+       execute / gold. -->
+  <section>
+    <div class="sec-head">{{FIELDS_HEADING}}</div>
+    <div class="fields">
+      <div class="field" style="--fc: var(--monitor)">
+        <span class="tag grounded">grounded</span>
+        <h3>{{FIELD1_NAME}}</h3>
+        <p>{{FIELD1_DESC}}</p>
+      </div>
+      <div class="field" style="--fc: var(--analyze)">
+        <span class="tag grounded">grounded</span>
+        <h3>{{FIELD2_NAME}}</h3>
+        <p>{{FIELD2_DESC}}</p>
+      </div>
+      <div class="field" style="--fc: var(--gold)">
+        <span class="tag reused">reused</span>
+        <h3>{{FIELD3_NAME}}</h3>
+        <p>{{FIELD3_DESC}}</p>
+      </div>
+      <div class="field" style="--fc: var(--execute)">
+        <span class="tag reused">reused</span>
+        <h3>{{FIELD4_NAME}}</h3>
+        <p>{{FIELD4_DESC}}</p>
+      </div>
+      <div class="field" style="--fc: var(--analyze)">
+        <span class="tag reused">reused</span>
+        <h3>{{FIELD5_NAME}}</h3>
+        <p>{{FIELD5_DESC}}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PROVENANCE (source-ledger.yaml summary) ──────────────────── -->
+  <!-- verification chip + source count + a few representative source anchors
+       (source id · field). Do not list every source; name the load-bearing few. -->
+  <section>
+    <div class="sec-head">Provenance — {{SOURCE_COUNT}} sources · {{VERIFICATION_STATUS}}</div>
+    <div class="prov">
+      <span class="src"><b>{{SOURCE1_ID}}</b> <span class="f">{{SOURCE1_FIELD}}</span></span>
+      <span class="src"><b>{{SOURCE2_ID}}</b> <span class="f">{{SOURCE2_FIELD}}</span></span>
+      <span class="src"><b>{{SOURCE3_ID}}</b> <span class="f">{{SOURCE3_FIELD}}</span></span>
+    </div>
+  </section>
+
+  <!-- ── OPTIONAL PIPELINE STRIP ──────────────────────────────────── -->
+  <!-- Keep ONLY if the packet actually describes an ordered flow (e.g. an event
+       pipeline). Otherwise delete this whole section. The .gate step is for a
+       named "open gate" / unverifiable item if the packet has one. -->
+  <section>
+    <div class="sec-head">{{PIPELINE_HEADING}}</div>
+    <div class="pipe">
+      <div class="step"><div class="k">{{PIPE1_K}}</div><div class="v">{{PIPE1_V}}</div></div>
+      <div class="step"><div class="k">{{PIPE2_K}}</div><div class="v">{{PIPE2_V}}</div></div>
+      <div class="step"><div class="k">{{PIPE3_K}}</div><div class="v">{{PIPE3_V}}</div></div>
+      <div class="step gate"><div class="k">{{GATE_K}}</div><div class="v">{{GATE_V}}</div></div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER (paths + issue refs) ──────────────────────────────── -->
+  <footer>
+    <div class="paths">
+      <div class="path">spec · <b>{{SPEC_PATH}}</b></div>
+      <div class="path">packet · <b>{{PACKET_PATH}}</b></div>
+      <div class="path">seed · <b>{{SEED_NOTE}}</b></div>
+    </div>
+    <div class="refs">
+      <span class="ref">{{REF1}}</span>
+      <span class="ref">{{REF2}}</span>
+      <span class="ref">{{REF3}}</span>
+    </div>
+    <p class="foot-note">{{FOOT_NOTE}}</p>
+  </footer>
+</div>
