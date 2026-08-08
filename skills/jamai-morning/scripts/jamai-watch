@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# jamai-watch — surveille l'atelier jamai sans jamais réveiller de modèle.
+#
+# Coût en tokens : ZÉRO. C'est du bash. Il ne parle à aucun modèle.
+# Il détecte un dépôt, l'écrit dans un journal, et appelle un crochet si tu en
+# as posé un. Ce que le crochet fait est à toi.
+#
+#   démarrer    : jamai-watch &              (ou : nohup jamai-watch &)
+#   suivre      : tail -f ~/.local/state/episode-voice/jamai-watch.log
+#   arrêter     : jamai-watch --stop
+#   à blanc     : jamai-watch --once         (un seul tour, puis sort)
+#
+# Le crochet, s'il existe et est exécutable :
+#   ~/.agents/skills/jamai-morning/scripts/jamai-on-drop
+# Il est appelé une fois par fichier neuf, avec le chemin complet en argument 1.
+set -uo pipefail
+
+EP="$HOME/.agents/skills/episode-voice-channel/scripts/episode"
+# Repère PROPRE à cette veille. Sans ça, elle partage watch-jamai.sha avec la
+# veille de session : la première qui interroge consomme le changement, et
+# l'autre voit « unchanged ». C'est ce qui a avalé le dépôt de 22h24.
+export EPISODE_STATE_DIR="$HOME/.local/state/episode-voice/watch-standalone"
+mkdir -p "$EPISODE_STATE_DIR"
+STATE="$HOME/.local/state/episode-voice"
+LOG="$STATE/jamai-watch.log"
+PIDFILE="$STATE/jamai-watch.pid"
+LEDGER="$STATE/jamai-mine.txt"          # fichiers produits par l'atelier, à ignorer
+HOOK="$HOME/.agents/skills/jamai-morning/scripts/jamai-on-drop"
+MIN=60; MAX=600                          # bornes de la cadence, en secondes
+
+mkdir -p "$STATE"; touch "$LOG" "$LEDGER"
+
+say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+
+case "${1:-}" in
+  --stop)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      kill "$(cat "$PIDFILE")" && say "arrêté (pid $(cat "$PIDFILE"))"; rm -f "$PIDFILE"
+    else
+      echo "aucune veille en cours"
+    fi
+    exit 0 ;;
+  --status)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      echo "vivante — pid $(cat "$PIDFILE"), journal : $LOG"
+    else
+      echo "arrêtée"
+    fi
+    exit 0 ;;
+esac
+
+[ -x "$EP" ] || { echo "introuvable : $EP" >&2; exit 1; }
+
+if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "déjà en cours (pid $(cat "$PIDFILE")) — jamai-watch --stop pour l'arrêter" >&2
+  exit 1
+fi
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+
+once="${1:-}"
+[ "$once" = "--once" ] || say "veille démarrée (pid $$) — crochet : $([ -x "$HOOK" ] && echo "$HOOK" || echo "aucun")"
+
+while :; do
+  out="$("$EP" watch jamai 2>&1)" || out="ERREUR: episode watch a échoué"
+
+  case "$out" in
+    unchanged*) : ;;
+    ERREUR*) say "$out" ;;
+    *)
+      # uniquement les fichiers neufs déposés par Jerry, jamais nos propres rendus
+      printf '%s\n' "$out" \
+        | sed -n 's|^  new /home/gmusic/Recordings-jamai/|/home/gmusic/Recordings-jamai/|p' \
+        | { grep -v -F -f "$LEDGER" || true; } \
+        | while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            say "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
+            if [ -x "$HOOK" ]; then
+              "$HOOK" "$f" >>"$LOG" 2>&1 \
+                && say "  crochet OK" \
+                || say "  crochet en échec (code $?)"
+            fi
+          done
+      ;;
+  esac
+
+  [ "$once" = "--once" ] && exit 0
+
+  d="$("$EP" watch jamai --interval 2>/dev/null || echo 300)"
+  case "$d" in ''|*[!0-9]*) d=300 ;; esac
+  [ "$d" -gt "$MAX" ] && d=$MAX
+  [ "$d" -lt "$MIN" ] && d=$MIN
+  sleep "$d"
+done
