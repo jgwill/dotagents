@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# abies-watch — surveille l'atelier « abies » : un MIROIR local de ce que Jerry
+# dépose sur le téléphone abies (Termux, port 8022, tailnet ferret-harmonic).
+#
+# Copié de jamai-watch le 2026-08-12. Ce n'est pas un simple renommage :
+# quatre écarts, chacun mesuré, sont notés « ÉCART » ci-dessous.
+#
+# Coût en tokens : ZÉRO. C'est du bash. Il ne parle à aucun modèle.
+#
+#   démarrer : abies-watch &          suivre : tail -f ~/.local/state/episode-voice/abies-watch.log
+#   arrêter  : abies-watch --stop     à blanc : abies-watch --once
+set -uo pipefail
+
+EP="$HOME/.agents/skills/episode-voice-channel/scripts/episode"
+WS=abies
+REMOTE=abies.ferret-harmonic.ts.net
+SSH_PORT=8022
+
+# ÉCART 1 — repère à cette veille SEULE. jamai-watch partage
+# « watch-standalone » ; les fichiers sont nommés par atelier (watch-abies.sha)
+# donc il n'y aurait pas de collision, mais l'isolation coûte une ligne.
+export EPISODE_STATE_DIR="$HOME/.local/state/episode-voice/watch-standalone-$WS"
+mkdir -p "$EPISODE_STATE_DIR"
+STATE="$HOME/.local/state/episode-voice"
+LOG="$STATE/$WS-watch.log"
+PIDFILE="$STATE/$WS-watch.pid"
+LEDGER="$STATE/$WS-mine.txt"             # fichiers produits par l'atelier, à ignorer
+HOOK="$HOME/.agents/skills/jamai-morning/scripts/jamai-on-drop"   # générique : vérifié, aucun chemin jamai en dur
+MIN=60; MAX=600                          # bornes de la cadence, en secondes
+
+mkdir -p "$STATE"; touch "$LOG" "$LEDGER"
+
+say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+
+case "${1:-}" in
+  --stop)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      kill "$(cat "$PIDFILE")" && say "arrêté (pid $(cat "$PIDFILE"))"; rm -f "$PIDFILE"
+    else
+      echo "aucune veille en cours"
+    fi
+    exit 0 ;;
+  --status)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      echo "vivante — pid $(cat "$PIDFILE"), journal : $LOG"
+    else
+      echo "arrêtée"
+    fi
+    exit 0 ;;
+esac
+
+[ -x "$EP" ] || { echo "introuvable : $EP" >&2; exit 1; }
+
+if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "déjà en cours (pid $(cat "$PIDFILE")) — abies-watch --stop pour l'arrêter" >&2
+  exit 1
+fi
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+
+# ÉCART 2 — le dossier surveillé est un MIROIR. Il faut le rafraîchir avant de
+# l'empreindre, sinon on veille sur une photo.
+#
+# JAMAIS --delete. Un tirage qui échoue (téléphone endormi, tailnet tombé) doit
+# laisser le miroir PÉRIMÉ, jamais VIDE : un dossier vidé change l'empreinte et
+# se lit comme « tout a bougé ». Sans --delete, le pire cas est du retard.
+#
+# Source : la paire par DÉFAUT d'abies (~/compositions, ~/Recordings) — son
+# portail sert WORKSPACE="" et c'est là que ses dépôts tombent réellement.
+pull() {
+  local rc=0
+  rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
+    "$REMOTE:~/compositions/" "$HOME/compositions-$WS/" >/dev/null 2>&1 || rc=$?
+  rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
+    "$REMOTE:~/Recordings/" "$HOME/Recordings-$WS/" >/dev/null 2>&1 || rc=$?
+  return $rc
+}
+
+once="${1:-}"
+[ "$once" = "--once" ] || say "veille démarrée (pid $$) — miroir $REMOTE:8022 — crochet : $([ -x "$HOOK" ] && echo "$HOOK" || echo "aucun")"
+
+pull_ko=0
+while :; do
+  if pull; then
+    [ "$pull_ko" -gt 0 ] && say "tirage rétabli après $pull_ko échec(s)"
+    pull_ko=0
+  else
+    pull_ko=$(( pull_ko + 1 ))
+    # On le dit une fois, puis tous les 10 tours : le téléphone dort souvent.
+    { [ "$pull_ko" -eq 1 ] || [ $(( pull_ko % 10 )) -eq 0 ]; } \
+      && say "tirage en échec ×$pull_ko — miroir périmé, pas cassé ($REMOTE injoignable)"
+  fi
+
+  out="$("$EP" watch "$WS" 2>&1)" || out="ERREUR: episode watch a échoué"
+
+  case "$out" in
+    unchanged*) : ;;
+    ERREUR*) say "$out" ;;
+    *)
+      # ÉCART 3 — jamai-watch code « /home/gmusic/Recordings-jamai/ » en dur et
+      # ne relève donc QUE les dépôts dans Recordings. Ici le matériel de Jerry
+      # est dans compositions (31 fichiers contre 2). Un simple renommage
+      # n'aurait jamais rien signalé. « s|^  new ||p » couvre les DEUX dossiers
+      # et ne code aucun chemin.
+      printf '%s\n' "$out" \
+        | sed -n 's|^  new ||p' \
+        | { if [ -s "$LEDGER" ]; then grep -v -F -f "$LEDGER" || true; else cat; fi; } \
+        | while IFS= read -r f; do
+            # ÉCART 4 (dans le bloc ci-dessus) — « grep -v -F -f » sur un ledger
+            # VIDE ne sort AUCUNE ligne : il avale tout, sans erreur. Tout
+            # atelier neuf naît avec un ledger vide, donc jamai-watch tel quel
+            # aurait détecté les dépôts et n'en aurait signalé aucun. Mesuré le
+            # 2026-08-12. D'où le test [ -s ].
+            [ -n "$f" ] || continue
+            say "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
+            if [ -x "$HOOK" ]; then
+              # < /dev/null n'est PAS décoratif. Le crochet tourne DANS la boucle
+              # qui lit le tube ; tout ce qu'il lance et qui consomme stdin mange
+              # les octets destinés au « read » suivant.
+              "$HOOK" "$f" < /dev/null >>"$LOG" 2>&1 \
+                && say "  crochet OK" \
+                || say "  crochet en échec (code $?)"
+            fi
+          done
+      ;;
+  esac
+
+  [ "$once" = "--once" ] && exit 0
+
+  d="$("$EP" watch "$WS" --interval 2>/dev/null || echo 300)"
+  case "$d" in ''|*[!0-9]*) d=300 ;; esac
+  [ "$d" -gt "$MAX" ] && d=$MAX
+  [ "$d" -lt "$MIN" ] && d=$MIN
+  sleep "$d"
+done
