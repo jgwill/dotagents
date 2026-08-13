@@ -74,9 +74,32 @@ while :; do
         | { grep -v -F -f "$LEDGER" || true; } \
         | while IFS= read -r f; do
             [ -n "$f" ] || continue
+            # NOTRE PROPRE VOIX NOUS REVIENT. L'application de Jerry transcrit
+            # les .m4a que NOUS déposons et écrit un sidecar .json à côté. Le
+            # ledger connaît « 260812233616.m4a » mais pas « 260812233616.json »
+            # — d'où un faux DÉPÔT à chaque message vocal, dans le canal même
+            # dont il se sert. Vu deux fois : 260803211258 et 260812233616.
+            #
+            # Le filtre est VOLONTAIREMENT ÉTROIT : seulement un .json dont la
+            # souche est déjà au ledger. Élargir au nom sans extension aurait
+            # aussi couvert les .mov et les .mid, et le mode de panne serait
+            # alors le pire de tous — un dépôt de Jerry avalé en silence.
+            case "$f" in
+              *.json)
+                if grep -q -F "$(basename "$f" .json)" "$LEDGER" 2>/dev/null; then
+                  continue
+                fi
+                ;;
+            esac
             say "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
             if [ -x "$HOOK" ]; then
-              "$HOOK" "$f" >>"$LOG" 2>&1 \
+              # < /dev/null n'est PAS décoratif. Le crochet tourne DANS la boucle
+              # qui lit le tube ; tout ce qu'il lance et qui consomme stdin mange
+              # les octets destinés au « read » suivant. Le 2026-08-06, ffmpeg a
+              # ainsi avalé les trois premiers caractères de la ligne d'après :
+              # « /home/... » est arrivé « me/... », introuvable. Ce tour-là ne
+              # coûtait qu'un .json ; le suivant peut coûter un vrai dépôt.
+              "$HOOK" "$f" < /dev/null >>"$LOG" 2>&1 \
                 && say "  crochet OK" \
                 || say "  crochet en échec (code $?)"
             fi

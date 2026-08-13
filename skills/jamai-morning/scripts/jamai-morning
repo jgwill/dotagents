@@ -12,7 +12,7 @@ set -euo pipefail
 STATE_DIR="${EPISODE_STATE_DIR:-$HOME/.local/state/episode-voice}"
 EPISODE="${EPISODE_SCRIPT:-$HOME/.agents/skills/episode-voice-channel/scripts/episode}"
 ATELIER=jamai
-PORTS="${JAMAI_RECORDER_PORTS:-8768 8778}"
+PORTS="${JAMAI_RECORDER_PORTS:-8828 8778}"
 CURL=(curl -sk --max-time 15)
 
 DRY=0; TITLE=""; SINCE=""
@@ -33,7 +33,7 @@ jamai-morning — open a music session in the jamai atelier
 "Unread" means not yet attached to any composition, not "arrived recently".
 A drop stays listed until it is used, however old. Reading consumes nothing.
 
-env: JAMAI_RECORDER_PORTS (default "8768 8778"), EPISODE_STATE_DIR
+env: JAMAI_RECORDER_PORTS (default "8828 8778"), EPISODE_STATE_DIR
 U
       exit 0 ;;
     *) printf 'unknown option: %s\n' "$1" >&2; exit 2 ;;

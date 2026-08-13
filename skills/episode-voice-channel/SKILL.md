@@ -14,7 +14,7 @@ Three systems already on the box make this work. This skill wires them into one
 path so you do not rediscover it:
 
 - **assembly-voice** — Edge-TTS with a voice per Assembly persona
-- **Pixel Recorder** — HTTPS portal on 8768 hosting compositions and recordings
+- **Pixel Recorder** — HTTPS portal on 8828 (was 8768 until 2026-08-08) hosting compositions and recordings
 - **Groq `whisper-large-v3`** — one call returns French transcription *and*
   English translation
 

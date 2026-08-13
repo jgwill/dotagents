@@ -3,7 +3,11 @@
 # Part of the episode-voice-channel skill. See ../SKILL.md.
 set -euo pipefail
 
-PORTAL="${PIXEL_RECORDER_URL:-https://localhost:8768}"
+# 8828, pas 8768 : le 8768 a été rendu à un autre agent le 2026-08-08. Un défaut
+# par défaut est le pire : le script marcherait, rangerait les dépôts de jamai
+# dans l'atelier de quelqu'un d'autre, et ne dirait rien. Le portail de jamai
+# affirme son identité — `data-current-workspace` — vérifie-la si tu doutes.
+PORTAL="${PIXEL_RECORDER_URL:-https://localhost:8828}"
 VOICE_DIR="${ASSEMBLY_VOICE_DIR:-$HOME/salix/repos/assembly-voice}"
 STATE_DIR="${EPISODE_STATE_DIR:-$HOME/.local/state/episode-voice}"
 CURL=(curl -sk --max-time 240)
@@ -139,6 +143,40 @@ print("%03d" % (n + 1))')"
   cmd_open "ep-$next $title"
 }
 
+# ----------------------------------------------------------------- import
+# Le portail nomme les dépôts YYMMDDHHMMSS, à la seconde. Deux imports dans la
+# MÊME seconde et le second est refusé :
+#   {"success":false,"error":"File with this timestamp already exists…"}
+# Les deux appelants lisaient .get("filename","") et mouraient sur « import
+# failed », en jetant le message du serveur qui disait exactement quoi faire.
+# Le 2026-08-07, deux montages attachés coup sur coup ont échoué ainsi : le
+# fichier de l'un était bien monté, mais non enregistré au registre — donc au
+# tour de veille suivant il serait passé pour un dépôt de Jerry.
+# On réessaie, puisque le serveur le demande ; et si ça casse pour une autre
+# raison, on montre SA raison.
+import_file() {
+  local f="$1" out filename err
+  local try
+  for try in 1 2 3 4; do
+    out="$("${CURL[@]}" -X POST "$PORTAL/import" -F "audioFile=@$f")"
+    filename="$(printf '%s' "$out" | python3 -c \
+      'import json,sys
+try:    print(json.load(sys.stdin).get("filename",""))
+except Exception: print("")')"
+    [ -n "$filename" ] && { printf '%s\n' "$filename"; return 0; }
+    err="$(printf '%s' "$out" | python3 -c \
+      'import json,sys
+try:    print(json.load(sys.stdin).get("error","") or sys.stdin.read())
+except Exception: print("réponse illisible du portail")')"
+    case "$err" in
+      *timestamp*) sleep 1.2 ;;                 # la seule qui vaille un réessai
+      *) printf 'import refusé : %s\n' "$err" >&2; return 1 ;;
+    esac
+  done
+  printf 'import refusé après 4 essais : %s\n' "$err" >&2
+  return 1
+}
+
 # ------------------------------------------------------------------- opus
 # Music compositions are numbered like episodes, with their own prefix, so the
 # two never collide in one atelier and both sort by when they happened.
@@ -190,8 +228,7 @@ cmd_say() {
 
   info "importing into $(current_workspace | sed 's/^$/main/')…"
   local filename
-  filename="$("${CURL[@]}" -X POST "$PORTAL/import" -F "audioFile=@$m4a" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("filename",""))')"
+  filename="$(import_file "$m4a")" || die "import failed"
   [ -n "$filename" ] || die "import failed"
   rm -f "$m4a"
 
@@ -434,13 +471,43 @@ cmd_video() {
 
     built="${TMPDIR:-/tmp}/episode-video-$(date +%s).mp4"
     info "building video from $(basename "$image") + $(basename "$audio")…"
-    # -shortest stops at the audio. The pad filter is not cosmetic: h264 refuses
-    # odd pixel dimensions, and a rasterised score lands on an odd height often.
-    ffmpeg -y -loglevel error -loop 1 -i "$still" -i "$audio" \
-      -c:v libx264 -tune stillimage -preset medium -crf 20 -pix_fmt yuv420p \
-      -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=white" \
-      -c:a aac -b:a 192k -shortest "$built" \
-      || die "ffmpeg failed to build the video"
+
+    # A rasterised multi-staff score is TALL, and nothing here used to bound it.
+    # Opus 006 (48 bars over 8 staves) came out 1400x5894: h264 at that height
+    # decodes nowhere. The player shows an empty frame and raises NO error, so
+    # the file looks fine on disk and the defect only surfaces when someone tries
+    # to watch it. Above a playable height, scroll the page past a window instead
+    # of showing it whole. The scroll is linear over the page, so it tracks the
+    # music approximately — not bar by bar.
+    # Seuil à 2160 px, pas plus bas : la partition de l'opus 005 fait 1898 px de
+    # haut et se lit parfaitement en image fixe. Un seuil trop bas ferait défiler
+    # ce qui marche déjà. C'est au-delà de ~4096 px que les décodeurs matériels
+    # lâchent ; 2160 laisse la marge sans toucher au cas connu-bon.
+    local ih dur vp=720 max
+    ih="$(ffprobe -v error -select_streams v:0 -show_entries stream=height \
+          -of csv=p=0 "$still" 2>/dev/null)"
+    dur="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$audio" 2>/dev/null)"
+    case "$ih"  in ''|*[!0-9]*)   ih=0  ;; esac
+    case "$dur" in ''|*[!0-9.]*)  dur=0 ;; esac
+
+    if [ "$ih" -gt 2160 ] && awk "BEGIN{exit !($dur > 6)}"; then
+      max=$(( ih - vp ))
+      info "  page is ${ih}px tall — scrolling it past a ${vp}px window"
+      ffmpeg -y -loglevel error -loop 1 -i "$still" -i "$audio" \
+        -filter_complex "[0:v]crop=iw:${vp}:0:'clip((t-2)/(${dur}-4)*${max},0,${max})',pad=ceil(iw/2)*2:ih:0:0:color=white,format=yuv420p,fps=25[v]" \
+        -map "[v]" -map 1:a \
+        -c:v libx264 -preset medium -crf 20 \
+        -c:a aac -b:a 192k -shortest "$built" \
+        || die "ffmpeg failed to build the scrolling video"
+    else
+      # -shortest stops at the audio. The pad filter is not cosmetic: h264 refuses
+      # odd pixel dimensions, and a rasterised score lands on an odd height often.
+      ffmpeg -y -loglevel error -loop 1 -i "$still" -i "$audio" \
+        -c:v libx264 -tune stillimage -preset medium -crf 20 -pix_fmt yuv420p \
+        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=white" \
+        -c:a aac -b:a 192k -shortest "$built" \
+        || die "ffmpeg failed to build the video"
+    fi
     [ -n "$tmp_png" ] && rm -f "$tmp_png"
     file="$built"
   fi
@@ -454,8 +521,7 @@ cmd_video() {
   info "importing into $(current_workspace | sed 's/^$/main/')…"
   # The import field really is called audioFile for video too.
   local filename
-  filename="$("${CURL[@]}" -X POST "$PORTAL/import" -F "audioFile=@$file" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("filename",""))')"
+  filename="$(import_file "$file")" || { [ -n "$built" ] && rm -f "$built"; die "import failed"; }
   [ -n "$built" ] && rm -f "$built"
   [ -n "$filename" ] || die "import failed"
   note_mine "$filename"

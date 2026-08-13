@@ -25,7 +25,16 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 verdict() { printf '%s\n' "$*" | tee "$OUT/verdict.txt"; }
 
-case "$(printf '%s' "$F" | tr '[:upper:]' '[:lower:]')" in
+# Le type se lit dans les octets, pas dans le nom. Le 2026-08-05, trois dépôts de
+# Jerry étaient du MIDI Standard portant l'extension .m4a : partis dans la branche
+# audio, ffmpeg a échoué et le verdict « aucune piste audio exploitable » les a
+# classés sans lever d'erreur. Un fichier valide, un verdict crédible, et faux.
+TYPE="$(printf '%s' "$F" | tr '[:upper:]' '[:lower:]')"
+# dd plutôt que head : sur un binaire, la substitution de commande avertit sur
+# les octets nuls et ce bruit atterrirait dans le journal de la veille.
+[ "$(dd if="$F" bs=4 count=1 2>/dev/null | tr -d '\0')" = "MThd" ] && TYPE="détecté-au-contenu.mid"
+
+case "$TYPE" in
 
   *.mid|*.midi)
     python3 "$D/jamai-midi.py" "$F" > "$TMP/notes.txt" 2>&1 || { verdict "MIDI illisible"; exit 1; }
@@ -43,40 +52,84 @@ case "$(printf '%s' "$F" | tr '[:upper:]' '[:lower:]')" in
   *.m4a|*.mp3|*.wav|*.mp4|*.mov|*.webm|*.ogg|*.flac)
     ffprobe -v error -show_format -show_streams -of default=noprint_wrappers=1 "$F" \
       > "$OUT/probe.txt" 2>&1
-    ffmpeg -v error -y -i "$F" -map 0:a:0 -ac 1 -ar 22050 "$TMP/a.wav" 2>/dev/null \
+    ffmpeg -nostdin -v error -y -i "$F" -map 0:a:0 -ac 1 -ar 22050 "$TMP/a.wav" 2>/dev/null \
       || { verdict "aucune piste audio exploitable"; exit 0; }
 
     python3 "$D/jamai-measure.py" "$TMP/a.wav" > "$OUT/mesure.txt" 2>&1 || true
     cen=$(sed -n 's/^centroïde spectral *: *\([0-9]*\) Hz/\1/p' "$OUT/mesure.txt" | head -1)
     sub=$(sed -n 's/^ *0– *250 Hz *: *\([0-9.]*\) %.*/\1/p'     "$OUT/mesure.txt" | head -1)
     dur=$(sed -n 's/^durée *: *\([0-9.]*\) s.*/\1/p'            "$OUT/mesure.txt" | head -1)
+    pic=$(sed -n 's/^pic *: *\([0-9.]*\).*/\1/p'                "$OUT/mesure.txt" | head -1)
+    # Part d'énergie AU-DESSUS de 1 kHz — les trois bandes hautes de
+    # jamai-measure.py. La dernière porte une borne variable (sr/2), d'où le
+    # motif ouvert.
+    hb1=$(sed -n 's/^ *1000– *4000 Hz *: *\([0-9.]*\) %.*/\1/p' "$OUT/mesure.txt" | head -1)
+    hb2=$(sed -n 's/^ *4000– *8000 Hz *: *\([0-9.]*\) %.*/\1/p' "$OUT/mesure.txt" | head -1)
+    hb3=$(sed -n 's/^ *8000–[0-9]* Hz *: *\([0-9.]*\) %.*/\1/p' "$OUT/mesure.txt" | head -1)
+    haut=$(awk "BEGIN{printf \"%.2f\", ${hb1:-0}+${hb2:-0}+${hb3:-0}}")
+
+    # Une piste muette n'est NI parole NI musique, et l'aiguillage ne le voit
+    # pas : avec centroïde 0 et 0 % sous 250 Hz, le test « sub < 50 && cen > 350 »
+    # est faux, donc kind reste « musique » par défaut. Le 2026-08-06, un
+    # enregistrement d'écran de 136 s au micro coupé est ainsi sorti « MUSIQUE,
+    # centroïde 0 Hz » — un fichier valide, un verdict assuré, et faux.
+    # Le contenu d'un tel dépôt est ailleurs : à l'image.
+    if awk "BEGIN{exit !(${pic:-1} < 0.0005)}"; then
+      verdict "MUET — ${dur:-?} s, piste audio silencieuse (pic ${pic:-0}). Aucun son : le contenu est à l'image. Si quelqu'un a parlé, le micro n'a rien pris."
+      exit 0
+    fi
 
     # Le discriminant fiable est le GRAVE, pas le médium. Mesuré sur les dépôts
     # de la séance : parole 13,8 / 17,6 / 37,6 % sous 250 Hz ; fredon 73,1 %.
     # Mon premier seuil (médium > 60 %) classait 260804222416.mov en musique
     # alors que c'est une consigne parlée — son médium n'était qu'à 53,3 %.
+    # ET UN CHANT D'OISEAU N'EST PAS DE LA PAROLE. Le 2026-08-11, deux
+    # captations de pic-bois sont sorties « PAROLE (Javanese) — Tengah / Terima
+    # kasih » et « PAROLE (English) — . ». Elles passaient le test ci-dessus
+    # sans peine : leur grave est bas (19,5 et 22,7 %) et leur centroïde très
+    # haut (2627 et 2116 Hz). Le verdict était faux, mais surtout WHISPER
+    # HALLUCINE sur du non-parole avec l'aplomb d'une transcription — un mot
+    # javanais inventé se lit exactement comme une consigne de Jerry.
+    #
+    # Garde-fou mesuré sur les 44 dépôts de l'atelier, part d'énergie > 1 kHz :
+    #   parole authentique   0,1 → 34,0 %   (le maximum est sa consigne du 11/08)
+    #   les deux oiseaux     72,5 et 73,2 %
+    # Le seuil à 60 % laisse 26 points de marge sous et 12 au-dessus. Aucun
+    # dépôt correctement classé ne bascule.
     kind=musique
-    awk "BEGIN{exit !(${sub:-100} < 50 && ${cen:-0} > 350)}" && kind=parole
+    awk "BEGIN{exit !(${sub:-100} < 50 && ${cen:-0} > 350 && ${haut:-0} <= 60)}" && kind=parole
 
     if [ "$kind" = parole ]; then
       KEY=$(grep -m1 '^GROQ_API_KEY=' "$HOME/.env" 2>/dev/null | cut -d= -f2-)
+      # PAS de « language=fr ». Jerry parle les deux langues, souvent l'anglais
+      # au réveil. Forcer le français ne fait pas échouer Whisper : il TRADUIT
+      # mal, en gardant l'aplomb d'une transcription. Le 2026-08-08, « I sent a
+      # couple of prompts » est ressorti « j'ai envoyé quelques promos », et
+      # « I had access to the Tide » est devenu « j'avais accès à la tête » —
+      # deux consignes d'opus rendues illisibles sans une seule erreur affichée.
+      # Whisper détecte la langue tout seul ; on l'écrit dans le verdict.
       if [ -n "${KEY:-}" ]; then
-        ffmpeg -v error -y -i "$F" -map 0:a:0 -c:a aac -b:a 96k -ac 1 "$TMP/a.m4a" 2>/dev/null
+        ffmpeg -nostdin -v error -y -i "$F" -map 0:a:0 -c:a aac -b:a 96k -ac 1 "$TMP/a.m4a" 2>/dev/null
         curl -s --max-time 180 https://api.groq.com/openai/v1/audio/transcriptions \
           -H "Authorization: Bearer $KEY" -F "file=@$TMP/a.m4a" \
-          -F model=whisper-large-v3 -F language=fr -F response_format=verbose_json \
+          -F model=whisper-large-v3 -F response_format=verbose_json \
           > "$TMP/g.json" 2>/dev/null
         python3 - "$TMP/g.json" > "$OUT/texte.txt" <<'PY' 2>/dev/null || true
 import json,sys
 d=json.load(open(sys.argv[1]))
 if 'error' in d: print('ERREUR:', d['error']); raise SystemExit
+lang=d.get('language','?')
+print(f"# langue détectée : {lang}")
 for s in d.get('segments',[]): print(f"[{s['start']:6.1f}] {s['text'].strip()}")
 PY
       fi
-      head=$(head -c 220 "$OUT/texte.txt" 2>/dev/null | tr '\n' ' ')
-      verdict "PAROLE — ${dur:-?} s, centroïde ${cen:-?} Hz. ${head:-transcription indisponible}"
+      lang=$(sed -n 's/^# langue détectée : //p' "$OUT/texte.txt" | head -1)
+      head=$(grep -v '^#' "$OUT/texte.txt" 2>/dev/null | head -c 220 | tr '\n' ' ')
+      verdict "PAROLE (${lang:-?}) — ${dur:-?} s, centroïde ${cen:-?} Hz. ${head:-transcription indisponible}"
     else
-      verdict "MUSIQUE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz. Mesure : $OUT/mesure.txt"
+      # Le % au-dessus de 1 kHz est le chiffre qui décide ; l'afficher rend le
+      # verdict vérifiable d'un coup d'œil au lieu de demander d'ouvrir mesure.txt.
+      verdict "MUSIQUE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz, ${haut:-?} % au-dessus de 1 kHz. Mesure : $OUT/mesure.txt"
     fi
     ;;
 
