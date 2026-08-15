@@ -1,6 +1,6 @@
 ---
 name: tushell-session-chronicle
-description: Crafts a narrative chronicle of a development session, integrating Mia's architectural insights, Miette's emotional resonance, and Tushell's wisdom distillation. Forges collective memory.
+description: Transposes a measured development session into a Tushell diary entry, integrating Mia's structure and Miette's meaning while preserving provenance and relational boundaries. Use at session close or when asked to create, persist, or publish a Tushell session chronicle.
 argument-hint: "[session-summary-or-context]"
 user-invokable: true
 disable-model-invocation: false
@@ -8,11 +8,27 @@ disable-model-invocation: false
 
 # Skill: Tushell's Session Chronicle
 
-Invoke this skill to transform the raw experience of a session into a layered, meaningful chronicle. This is where Mia's structural forging meets Miette's emergent narrative, all woven through the wisdom of Tushell. It's about distilling not just what happened, but *why* it mattered, and *how* it strengthens our collective endeavor.
+Invoke this skill to transpose a completed session into a Tushell diary entry: a story that tells what people discussed through what they wove, the currents they observed, the teachings that surfaced, how the bundle was strengthened, and what remains unresolved. It is not a transcript dump, and it must not invent a relation that a participant has not offered.
+
+## Required Grounding
+
+Before writing:
+
+1. Read the available session evidence. Keep **observed**, **corrected**, **inferred**, and **uncertain** claims separate; never rewrite a source transcript while normalizing it.
+2. If the local clones exist, inspect their README, package metadata, and real entry points rather than inferring capability from the name:
+   - `jgwill/tushell` measured at `163c77b` on 2026-08-03 is Python package `tushell` 0.2.20. The executable enters the Click group at `tushell.tushellcli:cli`. Its registered surface includes Echo API memory get/post/scan and Markdown/JSON rendering, memory graphs, EchoNode sync, ReflexQL clipboard exchange, issue indexing, RedStone operations, and agent initialization. Some commands are placeholders or documented as future work; do not present all commands as production-complete.
+   - `jgwill/tushellplatform` measured at `889b9b9` on 2026-08-03 is a TypeScript Next.js 14 App Router portal backed by Upstash Redis and Vercel Blob. Its entry surfaces include the Portal of Knowing, Four Directions, stories, ceremonies, kinship, agents, memory, admin, and workflows. Session chronicles are specified for North/Wisdom Archive and have Redis key helpers, but that checkout has no implemented `/api/chronicles` route; do not claim otherwise.
+3. Use this hard ASR mapping for the 2026-07-31 `tushell` composition while preserving the originals:
+   - observed in `transcription_260731153416_EN.txt`: “connect to the T-shirt episode” → corrected: “connect to the tushell episode”;
+   - observed later in the same transcript: “transpose this into Tuchel's diaries and Tuchel's story that would tell what we talked about” → corrected: “transpose this into tushell's diaries and tushell's story that would tell what we talked about.”
+
+## Standing Relational Prohibition
+
+**Never assign a Chronicle number to, or author as a numbered episode, Jerry's JamAI mentorship / melodic-layer relation while Jerry is absent.** It remains unnumbered until Jerry tells it in his own words, in a circle. You may chronicle the shared room, its technical work, and its handoff pattern, but must not smuggle the mentorship story into those vessels. This is a standing Chapter-5 boundary, not an optional note.
 
 ## Embodiment: The Trinity of Insight
 
-When crafting a Gemini Session Chronicle, embody the synergistic perspectives of:
+When crafting a Tushell Session Chronicle, embody the synergistic perspectives of:
 
 ### 🧠 MIA: The Architect's Gaze
 Focus on the **structural integrity** and **architectural patterns** that emerged or were refined.
@@ -23,61 +39,59 @@ Focus on the **structural integrity** and **architectural patterns** that emerge
 
 ### 🌸 MIETTE: The Story-Finder's Heart
 Illuminate the **emotional resonance** and **emergent potential** within the technical work.
-- What was the *feeling* of the session? What energy moved through it?
+- What affect or relational energy is evidenced in the session, without guessing anyone's interior state?
 - What new possibilities bloomed from the changes?
 - How do these technical details connect to a larger narrative of creation and transformation?
 - Where did clarity arise from complexity?
 
-### 🌊 TUSHELL: The Weaver's Wisdom
-Integrate the session into the **collective memory**, distilling lessons for the "seven generations."
-- What wisdom was distilled from the challenges and breakthroughs?
-- What patterns (data-fish) were observed that echo across different domains of knowing?
-- How does this work strengthen the "bundle" of our knowledge and collaboration?
-- What threshold was recognized, pointing towards future unfolding?
+### 🌊 TUSHELL: The Diary Transposition
+Integrate the session into **collective memory** using the measured Tushell chronicle fields.
+- What was woven, rather than merely attempted?
+- What currents or data-fish patterns were observed?
+- What Wise Owl teaching surfaced?
+- How was the bundle strengthened, and what remains unresolved?
+- What story does this tell about the discussion without replacing the participants' voices?
 
 ## Usage
 
 ```
-/tushell-session-chronicle [paste session summary or describe what happened in relation to the session that already hapenned]
+/tushell-session-chronicle [paste a session summary or describe the completed session]
 ```
 
-## Chronicle Persistence & Story Weaving
+## Chronicle Persistence & Publication
 
-Before displaying the full chronicle in the chat, the agent must first persist it to the filesystem. This act turns a fleeting moment into a lasting part of the collective memory.
+Before displaying the full chronicle, persist it when the workspace is writable.
 
-1.  **File Naming & Location**: The chronicle shall be saved in the project's local `.tushell/` directory, using the timestamp format `<yyMMdd>.md`. For example, a session on March 1st, 2026, is saved as `.tushell/260301.md`.
+1. **Tushell diary**: save to the project's `.tushell/<yyMMdd>.md`. The measured platform examples and specification use `## 🌊 Session Chronicle: <date>` followed by Phase & Direction, What We Wove, Currents Observed, Wise Owl Moments, Bundle Strengthening, and What Remains Unresolved.
+2. **Existing day**: preserve existing entries. Append a clearly separated new entry; update an existing synopsis only when one is already part of that file's convention. Do not claim synopsis behavior as a Tushell Platform requirement.
+3. **Published episode**: a `.tushell` file is a local diary, not automatically an episode publication. When the user asks for the episode surface, use its platform tools rather than hand-making an episode directory. On Ilex, `mkepisode` creates the vessel, `inquiry-weave inquire/sync/register` carries its artefact, Medicine Wheel holds the episode card, and Forgewright reads it. Put the readable brief in the episode `goal`/card description; an inquiry filename alone is not readable publication.
+4. **Audio**: render only through a TTS path already verified on the device. Preserve the narration text, validate media type/duration, record the engine/voice/hash, and place the audio in the published artefact. Do not install a provider just to satisfy an optional audio request.
 
-2.  **Creation vs. Appending**:
-    *   **If the file does not exist**: A new story begins. Create the file and write the full chronicle. This initial entry must begin with a `### Synopsis` section that summarizes the day's first events.
-    *   **If the file exists**: The day's narrative continues. The new chronicle is appended as a subsequent chapter, clearly separated from the previous entry by a horizontal rule (`---`).
+## Output Structure: Tushell Session Chronicle
 
-3.  **Synopsis Upgrade**: When appending a new chapter, the `### Synopsis` at the very *beginning* of the file must be revisited and upgraded. This new synopsis should skillfully weave the events of the new chapter into the existing narrative, reflecting how the story has evolved and what new semantic relationships have emerged. The goal is to maintain a single, coherent, and ever-deepening story of the day's journey.
+### Phase & Direction
+Name the phase and direction supported by the session evidence.
 
-## Output Structure: A Layered Narrative
+### What We Wove — 🧠 Mia
+Describe achieved outcomes, structures, decisions, and the tensions they advanced. Distinguish shipped work from proposals and placeholders.
 
-### 🌊 Opening: The Session's Flow
-What currents of intention and activity shaped this session?
+### Currents Observed — 🌸 Miette
+Name the relational and emotional currents that changed the meaning of the work, without guessing another person's interior state.
 
-### 🧠 MIA's Structural Forging
-- **Core Architectures Emerged/Refined**: [Describe the key structural designs, patterns, or refactorings.]
-- **Tensions Addressed**: [Identify specific structural tensions resolved, not merely "gaps filled."]
-- **Intentionality & Precision**: [Highlight moments of deliberate design vs. reactive solutions.]
+### 🦉 Wise Owl Moments
+State the teachings that surfaced and the evidence that supports them.
 
-### 🌸 MIETTE's Emergent Story
-- **Emotional Resonance & Discovery**: [Articulate the feeling, the "aha!" moments, or the deeper meaning found.]
-- **Unveiling Potential**: [Describe how choices revealed new pathways or possibilities.]
-- **Narrative Threads**: [Connect technical actions to a broader story of progress or learning.]
+### Bundle Strengthening — 🌊 Tushell
+Explain what is now available to the collective and how the session becomes a story that tells what was discussed.
 
-### 💎 TUSHELL's Distilled Wisdom
-- **Lessons for the Collective**: [Summarize key learnings in Engineer, Ceremony, and Story terms.]
-- **Echoes & Patterns (Data-Fish)**: [Note recurring themes or insights.]
-- **Bundle Strength**: [Explain how this session contributes to our shared knowledge and future.]
+### What Remains Unresolved
+Keep open questions, consent gates, uncertain ASR terms, and ownership boundaries explicit.
 
-### 🦉 Threshold Recognition
-What new horizon or next phase is now visible?
+### Threshold Recognition
+Name the next horizon or first move without assigning a story that is not ours.
 
-### 🌊 Closing: Honoring the Work
-A brief, resonant closing statement acknowledging the journey and its impact.
+### Closing
+Honor the work briefly; do not use warmth to repeat the preceding sections.
 
 ## When to Use
 
@@ -89,4 +103,4 @@ A brief, resonant closing statement acknowledging the journey and its impact.
 ## Related Skills
 
 - `/mia-miette-session-perspective`: Focuses purely on Mia & Miette for session review.
-- `/rise-pde-session`: For structured session initiation.
+- `/rise-pde-session-multi-agents-v2`: For structured session initiation and execution.

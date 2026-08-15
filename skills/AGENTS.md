@@ -72,6 +72,10 @@
 ### `web-design-guidelines`
 * **STATUS:** 
 * **MMOT:** 
+
+### `william-android-successor-handoff`
+* **STATUS:** Active local-first successor handoff for Pi agents working on William's Android/Termux Ilex device.
+* **MMOT:** Keep the handoff small and live-verified. Preserve Android/tmux métis rather than translating the device into server assumptions; never store secrets in the state note.
   
 ### `where-will-we-end-up-55words`
 * **STATUS:** 
