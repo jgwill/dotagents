@@ -146,3 +146,7 @@ vite.config.ts.timestamp-*
 # manière dont une consigne a été comprise. C'est de la matière de chronique,
 # elle se commite avec le travail qu'elle explique. Désignorée le 2026-08-05.
 !.pde
+
+# Bytecode Python — jamai-clip importe jamai-score-video comme module
+__pycache__/
+*.pyc
