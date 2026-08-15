@@ -26,7 +26,13 @@ LOG="$STATE/$WS-watch.log"
 PIDFILE="$STATE/$WS-watch.pid"
 LEDGER="$STATE/$WS-mine.txt"             # fichiers produits par l'atelier, à ignorer
 HOOK="$HOME/.agents/skills/jamai-morning/scripts/jamai-on-drop"   # générique : vérifié, aucun chemin jamai en dur
-MIN=60; MAX=600                          # bornes de la cadence, en secondes
+# ÉCART 7 — cadence resserrée le 2026-08-14 sur demande de Jerry (« c'est
+# pretty long before you start »). MIN=60 était du code MORT : cmd_watch écrit
+# 300 dès que quelque chose bouge et double ensuite, il ne descend JAMAIS sous
+# 300. Le plancher réel était donc 300 s et le plafond 600 s — pas 60 s.
+# MAX=180 mord vraiment : le clamp s'applique après lecture, donc chaque tour
+# est plafonné à 3 min. Coût : ~20 réveils du téléphone par heure au lieu de 6.
+MIN=60; MAX=180                          # bornes de la cadence, en secondes
 
 mkdir -p "$STATE"; touch "$LOG" "$LEDGER"
 
@@ -67,12 +73,29 @@ trap 'rm -f "$PIDFILE"' EXIT
 #
 # Source : la paire par DÉFAUT d'abies (~/compositions, ~/Recordings) — son
 # portail sert WORKSPACE="" et c'est là que ses dépôts tombent réellement.
+# ÉCART 5 — ~/downloads, ajouté le 2026-08-14, payé par un vrai dépôt manqué.
+# Jerry a déposé un MIDI le 12 août à 18h43 dans ~/downloads. Ni ~/compositions
+# ni ~/Recordings ne le contenaient : la veille ne pouvait pas le voir, et elle
+# ne s'en est pas plainte — le dépôt était hors périmètre, pas en erreur.
+# C'est là que tombent ses exports (le .mid, un .m4a, un .mp4).
+# Le miroir vise Recordings-<ws> parce que watch_dirs() ne connaît que
+# compositions-<ws> et Recordings-<ws> : tout dépôt à surveiller doit atterrir
+# dans l'un des deux.
 pull() {
-  local rc=0
+  local rc=0 d
   rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
     "$REMOTE:~/compositions/" "$HOME/compositions-$WS/" >/dev/null 2>&1 || rc=$?
-  rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
-    "$REMOTE:~/Recordings/" "$HOME/Recordings-$WS/" >/dev/null 2>&1 || rc=$?
+  # ÉCART 6 — /storage/emulated/0/Recordings, ajouté le 2026-08-14, payé par un
+  # second dépôt manqué (une CONSIGNE VOCALE, pas seulement un fichier).
+  # C'est le VRAI dossier d'enregistrement du téléphone : 64 fichiers, 223 Mo,
+  # là où le ~/Recordings de Termux n'en a que 2 datant de mai. L'appli
+  # d'enregistrement écrit dans le stockage partagé Android, pas dans le bac à
+  # sable de Termux. Chemin ABSOLU obligatoire : ~/storage/shared est un lien
+  # que rsync ne résout pas depuis l'autre bout ("No such file or directory").
+  for d in "~/Recordings" "~/downloads" "/storage/emulated/0/Recordings"; do
+    rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
+      "$REMOTE:$d/" "$HOME/Recordings-$WS/" >/dev/null 2>&1 || rc=$?
+  done
   return $rc
 }
 
@@ -102,8 +125,17 @@ while :; do
       # est dans compositions (31 fichiers contre 2). Un simple renommage
       # n'aurait jamais rien signalé. « s|^  new ||p » couvre les DEUX dossiers
       # et ne code aucun chemin.
+      # ÉCART 8 — la MACHINERIE de l'atelier, ajouté le 2026-08-14.
+      # `episode say` inscrit ses clips .m4a au ledger, mais PAS le
+      # composition.json ni les transcription_*.txt qu'il écrit à côté. Ils
+      # revenaient donc comme des dépôts de Jerry, trois fois de suite, et
+      # noyaient le signal même que la veille existe pour porter.
+      # Ces deux motifs ne sont JAMAIS déposés par Jerry — ils sont écrits par
+      # le portail. Tout le reste (img_*, .mp4, .m4a, .mid) peut venir de lui :
+      # on ne filtre pas dessus, on l'inscrit au ledger à la publication.
       printf '%s\n' "$out" \
         | sed -n 's|^  new ||p' \
+        | grep -v -E '/(composition\.json|transcription_[0-9]+_(FR|EN)\.txt)$' \
         | { if [ -s "$LEDGER" ]; then grep -v -F -f "$LEDGER" || true; else cat; fi; } \
         | while IFS= read -r f; do
             # ÉCART 4 (dans le bloc ci-dessus) — « grep -v -F -f » sur un ledger
