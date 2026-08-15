@@ -139,9 +139,27 @@ jamai-publish-melody --slug <slug> --note "..." piece.abc    # ABC → MIDI → 
 
 Always give Jerry the listenable link. Then put it where he will find it again:
 
+**Score videos scroll left to right, with a red playhead. Always.** Jerry asked
+for this on 2026-08-14 and then asked that it be remembered: *« je veux que tous
+les vidéos comportent cette barre rouge qui défile. »* He watches on a phone —
+a page that scrolls down makes him hunt for his place; the red bar hands it to
+him. Never ship a still image with audio again.
+
+```bash
+jamai-defile.py score.png piece.mp3 out.mp4 <secondes_par_mesure>
+episode video <op> --file out.mp4 --label "🎬 …"
+```
+
+Two things inside it are not decoration. The score must be engraved on **one
+single staff** (`%%pagewidth` wide + `%%barsperstaff N`, plus `-B N`), and the
+pan must be **piecewise**: abcm2ps spaces bars by their content — measured 298
+to 608 px on the same line — so a linear pan drifts by a full bar by the middle.
+The tool finds the barlines in the image and maps one bar of music to one
+segment of pixels. Verify by extracting two frames and checking the playhead
+against the expected bar number.
+
 ```bash
 episode image <op>  --file score.svg --width 1400 --label "🎼 …"
-episode video <op>  --image score.svg --audio piece.mp3 --label "🎬 …"
 episode text  <op>  --file analysis.md --lang fr --label "…" --source <clip>
 episode note  <op>  --text "quoi / pourquoi / quoi ensuite"   # under 1000 chars
 ```
