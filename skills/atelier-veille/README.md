@@ -340,6 +340,121 @@ Correction de fait au brief : **`main` n'a pas de paire `-main`**. `episode`
 le mappe sur `~/Recordings` + `~/compositions` (37 fichiers · 29 entrées). Cinq
 paires suffixées + `main` en nu.
 
+## L'atelier `aureon` — câblé le 2026-08-05, et ce que le câblage a trouvé
+
+Le portail **8798** a ouvert ce matin. Vérifié, pas supposé : `WORKSPACE=aureon`
+dans l'environnement du pid qui le sert, et `data-current-workspace="aureon"`
+dans chaque page — contre `"jamai"` sur 8768. `/api/compositions` rend `[]`,
+`~/Recordings-aureon` et `~/compositions-aureon` sont vides.
+
+*Le portail annonce `Recordings: /sdcard/Recordings-aureon`* — une valeur en dur
+dans `pixel-recorder.js` (l. 67), pas un héritage d'environnement. Ce n'est pas
+un trou : `/sdcard/Recordings-aureon` est un **lien** vers
+`/home/gmusic/Recordings-aureon`, comme les cinq autres. Le portail et la veille
+regardent le même dossier par deux chemins.
+
+### Les trois pièces
+
+| pièce | rôle |
+|---|---|
+| `ateliers/aureon/after-drop` | la couche 4 — va jusqu'au **brouillon**, s'arrête là |
+| `ateliers/aureon/aureon-journal-events.SKILL.md` | copie de référence de la compétence (18 131 o), pour que le réveil n'ait qu'un fichier à lire |
+| `scripts/atelier-attacher-clip` | attacher un audio existant à un contenant — **le pilote ne le sait pas faire** |
+
+`after-drop` ne réclame **aucun** numéro : `jr-NNN.{type}.{sujet}.v{ts}` ne peut
+pas être bâti avant que le type et le sujet soient jugés, et `atelier-claim-unit`
+les prend ensemble, sous verrou, en une fois. Il `--peek` (aucun verrou, rien
+consommé) et l'écrit dans le brouillon comme information.
+
+Au réveil il reste **deux** jugements, et rien d'autre : *quel contenant* et
+*quel sujet*. Tout le reste — mesure, transcription, indices, vérification du
+portail, recette d'exécution — est déjà sur disque, gratuitement. Le **titre
+reste nu** : nommer appartient à Jerry.
+
+### Cinq défauts trouvés en câblant, tous mesurés
+
+**1. Le registre `mine.txt` n'était écrit par personne.** `atelier-watch` filtrait
+sur `$DIR/mine.txt` ; `note_mine()` du pilote écrit dans
+`$EPISODE_STATE_DIR/<atelier>-mine.txt`. Deux chemins différents, donc un filtre
+qui lisait un fichier toujours vide — le refus « c'est notre propre rendu » ne
+refusait rien. La veille lit désormais **les deux** registres réellement écrits :
+celui de son dossier (import par un de ses enfants) et celui de la racine (import
+depuis un shell nu).
+
+**2. Le refus arrivait après la dépense.** Il vivait dans l'action de l'atelier,
+c'est-à-dire *après* la mesure et l'appel Whisper : on payait pour transcrire
+notre propre voix avant de la jeter. Remonté en tête d'`atelier-on-drop`.
+*Mesuré* : **2,483 s → 0,014 s**, et zéro appel Whisper.
+
+**3. Le portail était cru sur parole.** `av_portail` rend ce que la table dit ;
+`POST /api/workspace/switch` redémarre un recorder sur un autre espace de travail,
+et les ports se réattribuent. `av_portail_verifie` lit le badge avant d'écrire.
+*Mesuré* : avec `aureon` pointé sur 8768, la chaîne **refuse** en nommant
+« sert « jamai », pas « aureon » » et n'écrit rien.
+
+**4. Le portail d'aureon détruisait l'identifiant.** `atelier-claim-unit` n'avait
+qu'une branche à portail, écrite quand aureon n'en avait aucun : elle passe
+`"<préfixe>-NNN <Titre>"` et laisse le portail slugifier — ce qui perdait le
+**type** et la **version** en silence. Une queue sans `{slug}` lui passe désormais
+l'**identifiant entier**, rend l'identifiant (et non son ombre), et trace la
+correspondance dans `<atelier>-portail-slugs.txt`.
+*Mesuré, sur le vrai 8798* :
+
+```
+jr-001.main.etincelle-partagee-epreuve-a-vide.v260805133022   ← le nom qui fait autorité
+jr-001-main-etincelle-partagee-epreuve-a-vide-v260805133022   ← l'ombre, chez le portail
+```
+
+Ce que ça laisse ouvert, et qui n'est pas à nous : **le portail ne peut pas
+porter les points.** `slugify()` les remplace par des tirets, et normaliser
+l'identifiant assemblé détruirait la structure des segments. Deux noms coexistent
+donc pour une entrée. C'est un choix à faire, pas un défaut à corriger — et il
+appartient à Jerry.
+
+**5. Une version pouvait écraser son entrée.** `av_seconde_distincte` ne
+connaissait que les versions entre elles : une entrée neuve ne se déclarait pas
+dans le repère. *Mesuré* — la première version demandée dans la seconde de la
+réclamation rendait le nom **identique** :
+
+```
+claim --type main "…"            -> jr-001.main.….v260805133022
+claim --version-de jr-001.main.… -> jr-001.main.….v260805133022   le même
+```
+
+Exactement l'écrasement que « ne jamais écraser une source sans garder la
+sortante » interdit. L'entrée neuve écrit maintenant sa seconde dans le même
+repère. *Revérifié* : `v…133105` puis `v…133106`.
+
+### Ce qui a été éprouvé, et comment
+
+Toutes les épreuves en bac à sable (`ATELIER_VEILLE_STATE` détourné), sauf celles
+qui devaient toucher le vrai portail — et celles-là ont été **défaites** :
+la composition d'épreuve supprimée, `/api/compositions` rendu à `[]`,
+`~/compositions-aureon` vide, **`jr-001` toujours libre**.
+
+| épreuve | résultat |
+|---|---|
+| chaîne entière sur un dépôt réel de Jerry (36,69 s de parole) | brouillon prêt en 2,5 s, portail vérifié, `jr-001` annoncé non réclamé |
+| garde du registre | refusée en 14 ms, avant toute mesure |
+| garde du portail (aureon pointé sur 8768) | refusée, mismatch nommé |
+| réclamation réelle sur 8798, casse mixte + accents | `--type Main` → `main`, « Étincelle partagée » → `etincelle-partagee` |
+| `--version-de` × 2 | tête conservée, `v` strictement croissant |
+| quatre réclamations simultanées | quatre numéros distincts |
+| veille : `--prime`, `--once`, démarrage | repère `e3b0c4` dans son **propre** dossier, aucun `watch-aureon.sha` neuf à la racine |
+
+**Les indices ne mentent pas.** Sur ce dépôt, les quatre lexiques ressortent à
+**0** et aucune phrase ne revient : la transcription ne porte aucune signature de
+journal. C'est le comportement voulu — un comptage de mots dit où regarder, il ne
+tranche pas. Le contenant se choisit sur le contenu, jamais au spectre : mesuré
+le 2026-08-05, **le chant sort plus aigu que la parole** (465 Hz contre 342 Hz).
+
+### Ce qui reste un trou, et le reste
+
+`ateliers.conf` porte encore `destination = ?` pour aureon, et les `*` de
+`mode = revue*` / `sortie = journal*` marquent des valeurs **proposées**. Rien
+n'a été rempli. Le protocole d'archivage de la compétence dit explicitement
+*« User chooses »* entre éphémère, base cérémonielle et Drive — **non tranché**.
+
 ## Où ça vit — proposé, pas décidé
 
 Ici, `~/.agents/skills/atelier-veille/`, à titre **provisoire**. Aucun chemin

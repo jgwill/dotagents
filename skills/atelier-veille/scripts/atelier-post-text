@@ -42,7 +42,11 @@ while [ $# -gt 0 ]; do
 done
 [ -s "$FICHIER" ] || av_die "fichier vide ou introuvable : $FICHIER"
 
-PORTAIL="$(av_portail "$ATELIER")"; av_exige "$PORTAIL" "le portail" "$ATELIER" >/dev/null
+# Établi et VÉRIFIÉ, jamais hérité — la table dit ce qu'on croit, le badge dit ce
+# que le portail sert. Un recorder rebasculé écrirait la section dans le mauvais
+# atelier avec un 200 et pas un mot.
+unset PIXEL_RECORDER_URL
+PORTAIL="$(av_portail_verifie "$ATELIER")" || exit 1
 
 # La garde vit dans la bibliothèque : la même seconde-à-soi sert aux sections
 # texte ET aux identifiants horodatés, qui souffrent du même travers. Le portail

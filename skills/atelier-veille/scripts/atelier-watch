@@ -49,7 +49,18 @@ av_champ "$ATELIER" 1 >/dev/null                      # existe dans la table, ou
 
 REC="$(av_recordings "$ATELIER")"
 DIR="$(av_veille_dir "$ATELIER" "$INSTANCE")"
-LOG="$DIR/veille.log"; PIDFILE="$DIR/veille.pid"; LEDGER="$DIR/mine.txt"
+LOG="$DIR/veille.log"; PIDFILE="$DIR/veille.pid"
+# Le registre de ce que l'atelier produit LUI-MÊME. Deux fichiers, pas un, et ce
+# n'est pas une ceinture-et-bretelles : `note_mine()` du pilote écrit dans
+# $EPISODE_STATE_DIR/<atelier>-mine.txt, et ce dossier n'est pas le même selon
+# qui importe.
+#   · un enfant de CETTE veille  -> $DIR/<atelier>-mine.txt   (on l'y redirige)
+#   · un agent depuis un shell nu -> $AV_STATE/<atelier>-mine.txt (le défaut)
+# L'ancien `$DIR/mine.txt` n'était écrit par personne : le filtre lisait un
+# fichier toujours vide, et le refus « c'est notre propre rendu » ne refusait
+# rien. C'est le défaut qui a fabriqué deux épisodes fantômes le 2026-08-05.
+LEDGER="$DIR/$ATELIER-mine.txt"
+LEDGER_NU="$AV_STATE/$ATELIER-mine.txt"
 [ -n "$HOOK" ] || HOOK="$AV_HERE/atelier-on-drop"
 
 # Le repère d'état de `episode watch` vit ICI, dans le dossier de CETTE veille.
@@ -57,7 +68,7 @@ LOG="$DIR/veille.log"; PIDFILE="$DIR/veille.pid"; LEDGER="$DIR/mine.txt"
 # propre watch-<atelier>.sha, et c'est exactement ce partage qui a avalé le
 # dépôt de 22h24 le 2026-08-04.
 export EPISODE_STATE_DIR="$DIR"
-mkdir -p "$DIR"; touch "$LOG" "$LEDGER"
+mkdir -p "$DIR" "$AV_STATE"; touch "$LOG" "$LEDGER" "$LEDGER_NU"
 
 # Le portail de CET atelier, pour que le crochet et son action n'aient pas à le
 # redécouvrir. « - » = aucun portail : on n'exporte rien plutôt que le défaut
@@ -131,7 +142,7 @@ while :; do
       # les lignes de compositions/ (que `episode watch` émet aussi).
       printf '%s\n' "$out" \
         | sed -n "s|^  new ${REC}/|${REC}/|p" \
-        | { grep -v -F -f "$LEDGER" || true; } \
+        | { grep -v -F -f <(grep -h . "$LEDGER" "$LEDGER_NU" 2>/dev/null) || true; } \
         | while IFS= read -r f; do
             [ -n "$f" ] && [ -f "$f" ] || continue
             pose "$f"

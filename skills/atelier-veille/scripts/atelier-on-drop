@@ -36,6 +36,23 @@ F="${2:?usage: atelier-on-drop <atelier> <fichier>}"
 [ -f "$F" ] || av_die "introuvable : $F"
 av_champ "$ATELIER" 1 >/dev/null
 
+# Ce que l'atelier produit LUI-MÊME n'est pas un dépôt. Le refus est ici, en
+# tête, et pas seulement dans l'action de l'atelier : plus bas, la mesure et
+# l'appel Whisper ont déjà eu lieu, et on aurait payé pour transcrire notre
+# propre voix avant de la jeter. Sans ce refus, nos audios rouvrent des unités
+# en boucle — deux épisodes fantômes fabriqués le 2026-08-05.
+#
+# `note_mine()` du pilote écrit dans $EPISODE_STATE_DIR/<atelier>-mine.txt, et ce
+# dossier diffère selon qui importe : la racine depuis un shell nu, le dossier de
+# la veille depuis un de ses enfants. On regarde donc les deux.
+for R in "$AV_STATE/$ATELIER-mine.txt" "$AV_STATE"/veilles/"$ATELIER"--*/"$ATELIER"-mine.txt; do
+  [ -s "$R" ] || continue
+  if grep -qF "$(basename "$F")" "$R" 2>/dev/null; then
+    echo "  REFUSÉ — « $(basename "$F") » est au registre $R : c'est notre propre rendu, pas un dépôt."
+    exit 0
+  fi
+done
+
 OUT="$(av_drops_dir "$ATELIER" "$(basename "$F")")"
 mkdir -p "$OUT"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT

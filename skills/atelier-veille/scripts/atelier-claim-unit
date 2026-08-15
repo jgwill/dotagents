@@ -168,15 +168,64 @@ trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
 NNN="$(printf '%03d' "$(( $(maximum) + 1 ))")"
 ID="$(batir "$NNN")"
 
+# La seconde que cet identifiant vient d'occuper, notée dans le MÊME repère que
+# --version-de. Mesuré le 2026-08-05 : sans cette ligne, une version demandée
+# dans la seconde de l'entrée neuve rendait le nom IDENTIQUE —
+#   claim  --type main "…"           -> jr-001.main.….v260805133022
+#   claim  --version-de jr-001.main.… -> jr-001.main.….v260805133022   (le même)
+# — exactement l'écrasement que « ne jamais écraser une source sans garder la
+# sortante » interdit. La garde existait, mais elle ne connaissait que les
+# versions entre elles ; l'entrée neuve ne s'y déclarait pas.
+case "$QUEUE" in
+  *'{ts}'*) mkdir -p "$AV_STATE"; date -u +%Y%m%d%H%M%S > "$AV_STATE/$ATELIER-derniere-version.txt" ;;
+esac
+
 # Le registre est écrit AVANT toute création : si le portail refuse ensuite, on
 # aura brûlé un numéro — c'est réversible à la main. L'inverse ne l'est pas :
 # deux entrées sous le même numéro se recouvrent en silence.
 printf '%s\t%s\t%s\n' "$ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${TITRE:-}" >> "$REGISTRE"
 
-if [ "$PORTAIL" != '-' ] && [ "$PORTAIL" != '?' ]; then
-  PIXEL_RECORDER_URL="$PORTAIL" "$AV_EP" open "$PREFIXE-$NNN $TITRE"
-else
+if [ "$PORTAIL" = '-' ] || [ "$PORTAIL" = '?' ]; then
   # Aucun portail : l'identifiant est réclamé et tracé, rien n'est créé sur un
   # service qui n'existe pas. C'est à l'action de l'atelier d'ouvrir le contenant.
   printf '%s\n' "$ID"
+  exit 0
 fi
+
+# Un portail existe. Ce qu'il peut porter n'est pas le même selon la queue —
+# et le portail d'aureon (8798) n'existe que depuis ce matin, ce qui rend le cas
+# neuf.
+#
+#   queue « -{slug} » (jamai, episodes) : c'est LE PORTAIL qui fait autorité.
+#     Il dérive le slug du titre ; on lui passe « <préfixe>-NNN <Titre> » et on
+#     rend ce qu'il a créé. Inchangé.
+#
+#   queue sans « {slug} » (aureon) : c'est NOUS qui faisons autorité. L'identifiant
+#     est bâti ici et porte des points — jr-001.main.sujet.v260805114230 — et
+#     `slugify()` du portail remplace les points par des tirets. Lui passer
+#     « jr-001 <Sujet> » perdrait le type ET la version en silence ; lui passer
+#     l'identifiant entier n'en garde qu'une ombre en tirets. On fait donc les
+#     deux choses honnêtement : le portail reçoit l'identifiant complet comme
+#     titre, et la correspondance identifiant → slug est écrite à côté au lieu
+#     d'être devinée plus tard.
+#
+# Le portail est VÉRIFIÉ avant d'écrire : la table dit ce qu'on croit, le badge
+# dit ce qu'il sert. Un recorder rebasculé sur un autre espace de travail
+# écrirait dans le mauvais atelier avec un 200 et pas un mot.
+VERIFIE="$(av_portail_verifie "$ATELIER")" || exit 1
+
+case "$QUEUE" in
+  *'{slug}'*)
+    PIXEL_RECORDER_URL="$VERIFIE" "$AV_EP" open "$PREFIXE-$NNN $TITRE"
+    ;;
+  *)
+    SORTIE="$(PIXEL_RECORDER_URL="$VERIFIE" "$AV_EP" open "$ID" 2>&1)" || {
+      printf '%s\n' "$SORTIE" >&2
+      av_die "le portail a refusé d'ouvrir « $ID » — le numéro $NNN est brûlé dans $REGISTRE, à reprendre à la main."
+    }
+    SLUG="$(printf '%s\n' "$SORTIE" | tail -1)"
+    printf '%s\t%s\t%s\n' "$ID" "$SLUG" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      >> "$AV_STATE/$ATELIER-portail-slugs.txt"
+    printf '%s\n' "$ID"          # l'identifiant, pas son ombre : c'est lui le nom
+    ;;
+esac

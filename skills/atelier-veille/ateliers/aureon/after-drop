@@ -1,0 +1,294 @@
+#!/usr/bin/env bash
+# ateliers/aureon/after-drop <atelier> <fichier> <dossier> — la couche 4 d'aureon.
+#
+# Appelé par atelier-on-drop une fois la MESURE faite. Il ne re-mesure rien : il
+# lit verdict.env. Coût en tokens de modèle : ZÉRO. Il va jusqu'au BROUILLON et
+# s'arrête là.
+#
+# POURQUOI IL S'ARRÊTE LÀ
+# -----------------------
+# Le mode d'aureon est « revue » (ateliers.conf), et ce n'est pas un binaire
+# auto/réveil : le flux rituel est Réalisation → Brouillon → Revue → Publication
+# (EchoThreads#115, comm. 6). Les deux premières étapes se mécanisent — c'est
+# ce fichier. La REVUE appartient à Jerry. La publication suit sa parole.
+#
+# CE QU'IL PRÉPARE, ET CE QU'IL LAISSE
+# ------------------------------------
+# À nous : mesurer, transcrire, ranger, attacher, committer.
+# À Jerry : NOMMER. Un titre est un jugement, et il reste nu.
+# Au réveil du modèle, il reste exactement DEUX jugements, et rien d'autre :
+#   · quel contenant  — main · white · aven · musc
+#   · quel sujet      — le segment {sujet} de l'identifiant
+# Tout le reste est déjà écrit ici, sur disque, gratuitement.
+#
+# CE QU'IL NE FAIT PAS, ET POURQUOI
+# ---------------------------------
+# · Il ne réclame AUCUN numéro. jr-NNN.{type}.{sujet}.v{ts} ne peut pas être bâti
+#   avant que le type et le sujet soient jugés — et atelier-claim-unit les prend
+#   ensemble, sous verrou, en une fois. Réclamer avant, c'est brûler un numéro
+#   pour un identifiant à trou.
+# · Il ne classe PAS parole/musique au spectre pour choisir le contenant. Mesuré
+#   sur sept dépôts réels le 2026-08-05 : la consigne parlée de 8,7 s sort à
+#   342 Hz et 42,6 % sous 250 Hz, le chant de 7,6 s à 465 Hz et 38,8 % — le chant
+#   est PLUS aigu que la parole. Aucune ligne ne passe entre les deux. Le spectre
+#   sert à décider s'il faut transcrire, rien de plus. C'est le CONTENU qui dit
+#   le contenant.
+# · Il n'invente aucune valeur marquée « ? » dans la table.
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts" && pwd)/atelier-veille-lib.sh"
+
+ATELIER="${1:?usage: after-drop <atelier> <fichier> <dossier>}"
+F="${2:?usage: after-drop <atelier> <fichier> <dossier>}"
+OUT="${3:?usage: after-drop <atelier> <fichier> <dossier>}"
+BASE="$(basename "$F")"
+ICI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+dire() { printf '  %s\n' "$*"; }
+
+[ -r "$OUT/verdict.env" ] || { dire "TROU : $OUT/verdict.env absent — le crochet commun n'a rien scellé. Rien préparé."; exit 1; }
+# shellcheck source=/dev/null
+. "$OUT/verdict.env"
+
+# ---------------------------------------------------------------- 1. le registre
+# GARDE 1, et elle est un refus NET. Ce que l'atelier produit lui-même n'est pas
+# un dépôt de Jerry. Sans elle, nos propres audios rouvrent des unités en boucle
+# — deux épisodes fantômes créés le matin du 2026-08-05. La veille filtre déjà
+# sur son propre mine.txt ; celui-ci tient quand on appelle le crochet à la main,
+# et il regarde TOUS les registres de l'atelier, pas seulement celui d'une veille.
+# Les trois chemins où `note_mine()` du pilote a pu écrire : la racine (import
+# depuis un shell nu), et le dossier de chaque veille (import par un enfant de la
+# veille, qui hérite d'EPISODE_STATE_DIR). L'ancien `mine.txt` sans préfixe est
+# gardé au cas où une veille antérieure en aurait laissé un.
+for R in "$AV_STATE/$ATELIER-mine.txt" \
+         "$AV_STATE"/veilles/"$ATELIER"--*/"$ATELIER"-mine.txt \
+         "$AV_STATE"/veilles/"$ATELIER"--*/mine.txt; do
+  [ -s "$R" ] || continue
+  if grep -qxF "$BASE" "$R" 2>/dev/null || grep -qF "$BASE" "$R" 2>/dev/null; then
+    dire "REFUSÉ — « $BASE » est au registre $R : c'est notre propre rendu, pas un dépôt."
+    exit 0
+  fi
+done
+
+# ------------------------------------------------------------------ 2. le mode
+MODE_LU="${MODE:-?}"
+if [ "$MODE_LU" != revue ]; then
+  dire "TROU : le mode d'« $ATELIER » vaut « $MODE_LU », pas « revue » — le brouillon n'a pas de place définie."
+  dire "  C'est une décision de Jerry dans $AV_CONF, pas une valeur à supposer. Rien préparé."
+  exit 1
+fi
+
+# ---------------------------------------------------------------- 3. le portail
+# GARDE 2. On n'hérite JAMAIS de PIXEL_RECORDER_URL : le 2026-08-05, un crochet
+# en a hérité (8768, jamai) et a fabriqué trois épisodes dans le mauvais atelier.
+# On le fixe depuis la table ET on vérifie que le portail sert bien « aureon »
+# — un recorder rebasculé écrirait ailleurs avec un 200 et pas un mot.
+unset PIXEL_RECORDER_URL
+PORTAIL="$(av_portail_verifie "$ATELIER")" || exit 1
+dire "portail vérifié — $PORTAIL sert bien « $ATELIER »"
+
+# ------------------------------------------------------- 4. ce que le dépôt EST
+REVUE="$OUT/revue"; mkdir -p "$REVUE"
+IND="$REVUE/indices.txt"
+: > "$IND"
+
+if [ -n "${TEXTE:-}" ] && [ -s "${TEXTE:-/dev/null}" ] && ! grep -q '^ERREUR:' "$TEXTE"; then
+  MOTS="$(wc -w < "$TEXTE")"
+  # Les quatre signatures de aureon-journal-events/SKILL.md, en comptage de mots.
+  # C'est un INDICE, pas un verdict : un lexique ne sait pas ce qu'une phrase
+  # porte. Il est ici pour que le jugement parte de quelque chose de mesuré, et
+  # il est étiqueté comme tel dans le brouillon. Le protocole de détection dit
+  # que le doute se lève en DEMANDANT, et que le Main Journal est le contenant
+  # par défaut quand rien ne tranche — pas le contenant le mieux noté.
+  python3 - "$TEXTE" >> "$IND" <<'PY' 2>/dev/null || echo "(indices indisponibles)" >> "$IND"
+import re, sys, unicodedata
+from collections import Counter
+
+def nu(s):
+    s = unicodedata.normalize('NFD', s).lower()
+    return ''.join(c for c in s if not unicodedata.combining(c))
+
+LEX = {
+ 'main  (seuil / arc narratif)':
+   'aujourd hui hier demain matin soir semaine avant apres depuis maintenant '
+   'passage transition changement bascule decision choix carrefour blocage '
+   'debloque percee traverse comprendre compris realise apprentissage'.split(),
+ 'white (sacre / numineux)':
+   'sacre sacree ancetre ancetres esprit esprits priere prier ceremonie rituel '
+   'signe signes presage synchronicite hasard divin dieu grace benediction '
+   'plume reve songe mystere revere silence temple'.split(),
+ 'musc  (sonore / poetique)':
+   'melodie chanson chanter chante couplet refrain accord accords ton tonalite '
+   'rythme harmonie parole paroles fredon fredonne note notes gamme mineur '
+   'majeur guitare voix chant sonne resonne'.split(),
+ 'aven  (echo / mantrique)':
+   'souffle respire respiration inspire expire repete repeter repetition mantra '
+   'affirmation encore toujours revient reviens ancre ancrage boucle garde '
+   'rappelle rappeler'.split(),
+}
+t = nu(open(sys.argv[1], encoding='utf-8', errors='replace').read())
+mots = re.findall(r'[a-z]+', t)
+c = Counter(mots)
+print('INDICES — comptage de mots sur la transcription. CE N\'EST PAS UN VERDICT.')
+print('Un lexique ne sait pas ce qu\'une phrase porte ; il dit seulement où regarder.')
+print()
+for nom, lex in LEX.items():
+    trouves = [(m, c[m]) for m in lex if c[m]]
+    tot = sum(n for _, n in trouves)
+    detail = ', '.join(f'{m}×{n}' for m, n in sorted(trouves, key=lambda x: -x[1])[:8])
+    print(f'  {nom:34s} {tot:3d}   {detail}')
+print()
+# ECHO se reconnaît à la RÉPÉTITION, pas à un lexique : « quelque chose veut
+# être répété ». On mesure donc aussi les phrases qui reviennent telles quelles.
+lignes = [re.sub(r'^\[\s*[\d.]+\]\s*', '', l).strip() for l in
+          open(sys.argv[1], encoding='utf-8', errors='replace').read().splitlines()]
+rep = Counter(nu(l) for l in lignes if len(l.split()) >= 3)
+revient = [(l, n) for l, n in rep.items() if n > 1]
+if revient:
+    print('  phrases qui REVIENNENT telles quelles (signature echo → aven) :')
+    for l, n in sorted(revient, key=lambda x: -x[1])[:5]:
+        print(f'    ×{n}  {l[:90]}')
+else:
+    print('  aucune phrase ne revient telle quelle.')
+PY
+
+  # La destination que Jerry a peut-être dite dans l'enregistrement lui-même.
+  # Le lecteur est déjà écrit et éprouvé — il connaît « journal », « journaux »,
+  # « jr ». On ne l'appelle QUE sur un fichier absent du registre (garde 1
+  # ci-dessus) : nos propres audios disent « épisode 9 » parce que c'est nous qui
+  # les avons écrits. On LIT ce qu'il dit, on n'AGIT pas dessus — un dépôt dit
+  # « journal 3 » et c'est une VERSION d'une entrée existante, pas une entrée
+  # neuve. La différence est un jugement.
+  DEST="$HOME/.agents/skills/episode-voice-channel/scripts/destination-du-depot"
+  if [ -x "$DEST" ]; then
+    LU="$("$DEST" "$TEXTE" 2>/dev/null | head -1)"
+    [ -n "$LU" ] && printf '\nDESTINATION LUE DANS L'\''ENREGISTREMENT : %s\n' "$LU" >> "$IND"
+  fi
+else
+  MOTS=0
+  { echo "Pas de transcription."
+    echo
+    echo "Le crochet a classé ce dépôt « ${KIND:-?} » au spectre — ce qui décide"
+    echo "s'il faut transcrire, et RIEN d'autre. Le contenant ne se lit pas dans"
+    echo "un centroïde : mesuré le 2026-08-05, le chant sort plus aigu que la"
+    echo "parole. Sans texte, aucun indice n'est disponible et le jugement"
+    echo "demande d'ÉCOUTER le fichier. C'est un trou, nommé comme trou."
+  } >> "$IND"
+fi
+
+# ------------------------------------------------------------- 5. le brouillon
+# --peek ne prend pas le verrou et ne consomme rien : c'est une information pour
+# le réveil, pas une réservation. Le numéro se réclame au moment où le type et le
+# sujet sont jugés, en une seule fois, sous verrou.
+PROCHAIN="$("$AV_HERE/atelier-claim-unit" "$ATELIER" --peek 2>/dev/null || echo '?')"
+
+{
+  cat <<EOF
+# Revue en attente — atelier aureon
+
+**Dépôt** : \`$F\`
+**Mesuré** : ${DUREE:-?} s · centroïde ${CENTROIDE:-?} Hz · ${SOUS250:-?} % sous 250 Hz · classé « ${KIND:-?} » · ${MOTS} mots
+**Dossier** : \`$OUT\`
+**Portail vérifié** : $PORTAIL (sert bien « aureon »)
+**Prochain numéro libre** : \`$PROCHAIN\` — *non réclamé, rien n'est verrouillé*
+
+---
+
+## Les deux seuls jugements qui restent
+
+### 1. Quel contenant
+
+| type | journal | longueur visée | signature |
+|---|---|---|---|
+| \`main\`  | Main Journal — Jericho's Reflections | 150–300 mots | 📍 seuil : arc narratif, bascule, transition |
+| \`white\` | Spiritual Journal — White Feather | 100–200 mots | 🕊️ sacré : numineux, synchronicité, symbole |
+| \`aven\`  | Aven's Loops — Emotional Anchors | 30–80 mots | 🔁 écho : ce qui veut être répété, mantrique |
+| \`musc\`  | Gmusic Lyrics — Spiritual Composition | 100–180 mots | 🎵 sonore : mélodie, vers, compression poétique |
+
+Le protocole de détection dit trois choses, dans cet ordre :
+écouter la signature · **si c'est ambigu, DEMANDER** · à défaut, \`main\` est le
+contenant par défaut, parce que c'est le plus souple. Plusieurs signatures à la
+fois est un cas prévu — une entrée en spirale, plusieurs contenants.
+Gabarits complets : \`$ICI/aureon-journal-events.SKILL.md\`
+
+### 2. Quel sujet
+
+Le segment \`{sujet}\` de l'identifiant : minuscules-tirets, sans accent ni
+ponctuation. \`atelier-claim-unit\` le normalise lui-même — on lui donne le sujet
+en clair.
+
+### Ce qui n'est PAS à juger
+
+**Le titre reste nu.** Nommer est un jugement, et il appartient à Jerry.
+Le sujet sert à bâtir un nom de fichier ; ce n'est pas un titre.
+
+---
+
+## Les indices
+
+\`\`\`
+$(cat "$IND")
+\`\`\`
+
+---
+
+## La transcription
+
+EOF
+  if [ "$MOTS" -gt 0 ]; then printf '```\n%s\n```\n' "$(cat "$TEXTE")"
+  else printf '_Aucune._ Le fichier est intact : `%s`\n' "$F"; fi
+
+  cat <<EOF
+
+---
+
+## Ce que le réveil exécute, une fois les deux jugements faits
+
+\`\`\`sh
+ID="\$($AV_HERE/atelier-claim-unit aureon --type <main|white|aven|musc> "<le sujet>")"
+# -> jr-NNN.{type}.{sujet}.v{yymmddhhmmss}, sous verrou, et le contenant ouvert
+#    sur le portail 8798. L'identifiant fait autorité ; le slug du portail en est
+#    l'ombre, tracée dans $AV_STATE/aureon-portail-slugs.txt.
+
+# puis attacher la source et la transcription au contenant. Le slug du portail
+# est l'ombre de l'identifiant (slugify remplace les points par des tirets) ;
+# il est tracé au moment de la réclamation, on ne le redevine pas :
+SLUG="\$(tail -1 $AV_STATE/aureon-portail-slugs.txt | cut -f2)"
+$AV_HERE/atelier-attacher-clip aureon "\$SLUG" "$F"
+$AV_HERE/atelier-post-text     aureon "\$SLUG" "$TEXTE" --label "transcription"
+\`\`\`
+
+Puis le BROUILLON de l'entrée, au gabarit du contenant choisi et à sa longueur.
+**Et on s'arrête.** La Revue appartient à Jerry ; la publication suit sa parole.
+
+## Ce qui reste ouvert, et qui n'est pas à nous
+
+Le protocole d'archivage de la compétence laisse trois options — éphémère ·
+base cérémonielle · Drive — et dit explicitement *« User chooses »*.
+**Ne pas trancher.**
+EOF
+} > "$REVUE/revue.md"
+
+{
+  printf 'ATELIER=%q\n'   "$ATELIER"
+  printf 'FICHIER=%q\n'   "$F"
+  printf 'DOSSIER=%q\n'   "$OUT"
+  printf 'REVUE=%q\n'     "$REVUE/revue.md"
+  printf 'PORTAIL=%q\n'   "$PORTAIL"
+  printf 'KIND=%q\n'      "${KIND:-}"
+  printf 'MOTS=%q\n'      "$MOTS"
+  printf 'TEXTE=%q\n'     "${TEXTE:-}"
+  printf 'PROCHAIN=%q\n'  "$PROCHAIN"
+  printf 'ETAPE=%q\n'     brouillon
+  printf 'ATTEND=%q\n'    'type+sujet'
+} > "$REVUE/attente.env"
+
+# ------------------------------------------------------------------ 6. le signal
+# Un fichier par dépôt en attente, dans un dossier que le Monitor regarde. C'est
+# le seul endroit où la chaîne demande un modèle — et elle ne le demande qu'une
+# fois le terrain entièrement préparé.
+FILE="$AV_STATE/$ATELIER-revues"; mkdir -p "$FILE"
+cp "$REVUE/attente.env" "$FILE/$BASE.env"
+
+dire "BROUILLON PRÊT — $REVUE/revue.md"
+dire "  en attente de deux jugements : quel contenant, quel sujet. Rien réclamé, rien publié."

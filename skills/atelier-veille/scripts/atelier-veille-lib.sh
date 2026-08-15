@@ -98,6 +98,29 @@ av_seconde_distincte() {          # av_seconde_distincte <atelier> <étiquette>
 # temps. Le verrou ne vaut que si tout le monde prend le même.
 av_verrou()     { printf '%s/%s-numero.lock\n' "$AV_STATE" "$1"; }
 
+# --- le portail de CET atelier, établi et non hérité --------------------------
+# LE défaut payé le 2026-08-05 : un crochet a hérité de PIXEL_RECORDER_URL de son
+# environnement — 8768, jamai — et fabriqué trois épisodes dans le mauvais
+# atelier. L'URL de la table ne suffit pas : elle dit ce qu'on CROIT. Le portail,
+# lui, peut avoir été rebasculé (`POST /api/workspace/switch` redémarre le
+# recorder avec un autre WORKSPACE, et les ports sont réattribuables).
+#
+# On le mesure donc avant d'écrire. Le badge d'espace de travail est rendu dans
+# chaque page (`data-current-workspace="…"`, vérifié le 2026-08-05 : 8798 rend
+# « aureon », 8768 rend « jamai »). C'est la seule affirmation d'identité que le
+# portail publie — il n'expose aucun GET /api/workspace.
+av_portail_verifie() {                         # av_portail_verifie <atelier> -> l'URL
+  local a="$1" p ws
+  p="$(av_portail "$a")"
+  av_exige "$p" "le portail" "$a" >/dev/null
+  ws="$(curl -sk --max-time 15 "$p/" 2>/dev/null \
+        | grep -o 'data-current-workspace="[a-z0-9-]*"' | head -1 \
+        | sed 's/.*="\(.*\)"$/\1/')"
+  [ -n "$ws" ] || av_die "portail « $p » injoignable ou muet sur son espace de travail — rien écrit plutôt qu'écrit ailleurs."
+  [ "$ws" = "$a" ] || av_die "portail « $p » sert « $ws », pas « $a ». C'est exactement le dépôt-dans-le-mauvais-atelier du 2026-08-05 — rien écrit."
+  printf '%s\n' "$p"
+}
+
 # Un « ? » est un trou déclaré. On s'arrête dessus au lieu d'improviser.
 av_exige() {                                   # av_exige <valeur> <ce que c'est> <atelier>
   case "$1" in
