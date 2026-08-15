@@ -6,14 +6,19 @@ William, et rapportées dans la conversation au moment de la mesure.
 
 ## Coordonnées pour revenir
 
+**Provenance durable** (survit aux machines) :
+
 | | |
 |---|---|
-| herdr workspace | `w15` — « musique pour William par JamAI » (n° 7) |
-| herdr pane | `w15:p1` · tab `w15:t1` · terminal `term_65893aea9491546` |
-| session Claude | `9f8a16f3-7151-4d35-a928-53f703ba9faa` |
-| transcript | `~/.claude/projects/-home-gmusic/9f8a16f3-7151-4d35-a928-53f703ba9faa/` |
-| composition | `https://ilex.ferret-harmonic.ts.net:8768/compositions/ava001` (workspace `aureon`) |
-| dossier | `~/compositions-aureon/ava001` sur `ilex.ferret-harmonic.ts.net:8022` |
+| session Claude | `9f8a16f3-7151-4d35-a928-53f703ba9faa` · 2026-08-08 → 08-10 |
+| la session relue, publiquement | <https://gmusicassembly.com/session-ava001/> |
+| composition | `ava001`, portail Pixel Recorder de l'appareil **ilex**, workspace `aureon` |
+| dossier | `~/compositions-aureon/ava001` sur ilex |
+
+**Éphémère de machine** (côté fork ; vrai au 2026-08-10, déjà bougé depuis —
+ilex a quitté `ferret-harmonic` pour `tail3b11eb` le 2026-08-15, et son portail
+ne se joint que depuis l'appareil lui-même) : herdr `w15:p1`, terminal
+`term_65893aea9491546`, transcript sous `~/.claude/projects/-home-gmusic/`.
 
 ## La matière de départ
 
@@ -47,7 +52,7 @@ pas d'un demi-ton une fois sur deux.
 
 Après fusion des grappes voisines d'un demi-ton : **304 → 141 notes**, et la
 tonalité change — Si♭ majeur (r=+0,621) devient **ré dorien** (couverture 70,9 %,
-tonique confirmé à 0,635 contre 0,401 pour le suivant).
+tonique confirmée à 0,635 contre 0,401 pour le suivant).
 
 Jerry a couplé la conséquence dans la même phrase : « moins de doubles croches,
 plus de croches ». Mesure après déglissage : IOI médian **0,186 s → 0,465 s**.

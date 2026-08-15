@@ -44,3 +44,16 @@ question, soit un réflexe — jamais les deux.** Le critère de partage est dan
 
 Aucun code, aucun skill. Ces specs décrivent ; l'implémentation viendra quand
 Jerry le dira. Voir `04-exportation.spec.md`.
+
+## Consentement
+
+Ces specs sont en partie un enregistrement **sur des personnes nommées**, au
+sens du contrat I3 de ce dépôt (`ISSUE-PROPOSALS-260801.md § I3`) :
+
+| sujet | ce qui est publié de lui | état du consentement |
+|---|---|---|
+| William | mesures de sa voix chantée (centroïde 585 Hz, note d'arrivée Si♭ 20,8 %) | il a demandé lui-même la montée en amont (2026-08-15) ; sa ligne écrite est invitée sur jgwill/dotagents#23, à côté de ce qui parle de lui — la règle de provenance de `02`, appliquée à lui aussi |
+| Jerry | ses six interventions de mentorat, citées | dites dans le cadre d'un mentorat qu'il savait producteur de specs ; parole de métier, honorée, jamais exposée |
+
+L'audio des voix n'est **nulle part** : analysé sur autorisation, supprimé
+(`shred`), seuls les chiffres conservés.
