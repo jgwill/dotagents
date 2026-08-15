@@ -181,7 +181,8 @@ renversements et la lisibilité des systèmes.
 
 **Défaut** : **à côté, toujours.** Une analyse corrigée n'invalide pas les pièces
 bâties sur l'ancienne. La session a produit quatre versions dont deux reposent
-sur un motif qui n'existait pas — elles tiennent debout et il les aime.
+sur un motif qui n'existait pas — elles tiennent debout et elles ont été gardées,
+sur le mot de celui qui les a entendues.
 
 ---
 
@@ -201,8 +202,8 @@ Chaque réponse de William devient une ligne citée dans le document de provenan
 de la pièce, en face du paramètre qu'elle a posé :
 
 ```
-« il s'y passe quelque chose »  ->  silence comprime 55 s -> 12 s, non supprime
-« ils me tiennent »            ->  valeurs instrumentales a 8-16x son grain
+« il s'y passe quelque chose »  ->  silence comprimé 55 s -> 12 s, non supprimé
+« ils me tiennent »             ->  valeurs instrumentales à 8-16× son grain
 ```
 
 Quand la réponse manque, le défaut est écrit **comme un choix de JamAI**, pas

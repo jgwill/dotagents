@@ -2,7 +2,8 @@
 
 ## Ce qui existe aujourd'hui
 
-Quatre fichiers de spécification et un visuel HTML. **Aucun code, aucun skill** —
+Cinq fichiers de spécification, celui-ci compris ; le visuel HTML vit dans la
+page publique `session-ava001/`, pas dans ce dossier. **Aucun code, aucun skill** —
 c'est délibéré et c'est la consigne de Jerry : décrire et définir avant de coder.
 
 ## Ce que ces specs permettent de construire
@@ -14,13 +15,15 @@ Il porterait :
 - le déclencheur : William se présente, ou une session s'ouvre sur son portail
 
 **Il ne porterait pas les réflexes.** Ceux-ci appartiennent à la méthode
-elle-même (`jamai-morning`), pas à l'accueil d'une personne : ils tournent que
+elle-même (`jamai-morning`), pas à l'accueil d'une personne : ils tournent, que
 William soit là ou non.
 
 ### Des réflexes ajoutés à la méthode existante
-`03` décrit six réflexes. Trois sont déjà dans `jamai-morning/SKILL.md` sous une
-autre forme (ligature, compte de notes, regarder le PNG). **Trois sont nouveaux
-et n'existent nulle part** :
+`03` décrit six réflexes. **Quatre sont nouveaux et n'existent nulle part
+(1–4).** Le 5 existait déjà — trois de ses facettes (ligature, compte de notes,
+regarder le PNG) sont dans `jamai-morning/SKILL.md` — sans jamais se déclencher ;
+le 6 existe partiellement (R11). `jamai-morning` est portée par
+jgwill/dotagents#20, encore ouverte :
 
 | réflexe | état |
 |---|---|
@@ -75,9 +78,9 @@ sont écrits sans un mot de harnais, de dépôt ni de chemin machine.
 
 ## Ce qui reste ouvert
 
-- **Le seuil de 35 %** du réflexe 2 vient d'une seule session. Il tiendra ou pas
-  sur d'autres voix, d'autres trackers. À reprendre quand il y aura d'autres
-  prises.
+- **Les deux seuils du réflexe 2 — 30 % et 35 %** — viennent d'une seule
+  session. Ils tiendront ou pas sur d'autres voix, d'autres trackers. À
+  reprendre quand il y aura d'autres prises.
 - **La note d'arrivée écartée** : Si♭ est la note sur laquelle William atterrit
   le plus souvent (20,8 % des fins de phrase) et elle n'appartient pas au mode
   retenu. Elle a été écartée pour tenir « une seule tonalité ». C'est réversible
