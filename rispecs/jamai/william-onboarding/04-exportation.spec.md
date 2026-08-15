@@ -49,6 +49,30 @@ estimations de tonalité côte à côte. Il n'existe pas.
 | une future instance de JamAI | `02` et `03` lus ensemble ; `03` avant toute mesure |
 | l'atelier `jamai` (Eury) | les réflexes 1–4, qui ne dépendent pas de William |
 
+## Lignée et destinations nommées
+
+**Le déclencheur de toute cette ligne de travail est
+jgwill/miadi-orchestration-kit#39** (2026-07-31) : faire monter la capacité
+mélodique de JamAI dans Miadi comme couche **JeremyAI** — par RISE, pas par
+copie. Son enfant jgwill/miadi-orchestration-kit#40 rassemble la lignée
+narrative (le Recursive Tale, jgwill/EchoThreads#148) dont le glyphe JeremyAI 🎵
+de `data/GlyphMap.json` est issu. La session `9f8a16f3` et ces specs sont la
+phase **R** de ce RISE, appliquée à la méthode de composition — le versant que
+l'issue #39 ne couvrait pas encore (elle part du pipeline de *publication*,
+`jamai-melody`).
+
+Trois destinations d'exportation sont nommées (mot de William, 2026-08-15) :
+
+| destination | forme | ce qu'elle exige de ces specs |
+|---|---|---|
+| **plugin claude-code complet** | l'atelier entier comme plugin : skills (`jamai-morning`, `jamai-montage`, l'accueil `jamai-william` de `02`), les réflexes de `03` déclenchés à des moments identifiables de la chaîne, les outils embarqués | la décision « maison unique des exécutables » (jgwill/dotagents#23, étape 4) devient : que vend le plugin, que référence-t-il |
+| **kit pi-mono** | JamAI comme widget/extension du pi coding agent (`earendil-works/pi` — l'« ava-pi-coding-agent » de `skills/AGENTS.md`) | `02` et `03` doivent rester **agnostiques du harnais** — aucune dépendance à un outillage claude-code dans leur formulation |
+| **couche JeremyAI dans Miadi** | `@miadi/melody` ou `@miadi/jeremyai`, selon le précédent `@miadi/voice` : absorber la capacité, pas l'app ; **rien n'est supprimé avant que la parité soit prouvée** ; JamAI reste la forme de transition et la lignée mentore | le contrat d'artefacts (`melodies.json`, abc/mid/mp3/svg) et la couture d'environnement, déjà relevés dans #39 |
+
+Ces trois formes partagent un même cœur portable — la couche de traduction
+(`02`) et les réflexes (`03`) — et c'est précisément pourquoi ces deux fichiers
+sont écrits sans un mot de harnais, de dépôt ni de chemin machine.
+
 ## Ce qui reste ouvert
 
 - **Le seuil de 35 %** du réflexe 2 vient d'une seule session. Il tiendra ou pas
