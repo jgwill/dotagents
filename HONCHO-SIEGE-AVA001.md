@@ -4,6 +4,11 @@
 William. Compagnon de [`HONCHO-COORDINATION.md`](HONCHO-COORDINATION.md), qui
 pose la structure générale ; ce fichier ne traite que d'`ava001`.
 
+**Consentement (contrat I3 du dépôt).** Ce fichier porte des mesures de la voix
+chantée de William (centroïde, note d'arrivée) : il en a demandé lui-même la
+montée en amont (2026-08-15), et sa ligne écrite est invitée sur
+jgwill/dotagents#23, à côté de ce qui parle de lui.
+
 ## Ce qui est mesuré, et ce qui ne l'est pas
 
 **La porte n'est pas ouverte depuis cette session.** `claude mcp list` ne
@@ -12,7 +17,7 @@ portée est `/src`, pas `/home/gmusic`. Aucune variable `HONCHO_*` dans
 l'environnement. Donc : **aucun workspace n'a été créé, aucun pair, aucune
 session.** Rien n'a été écrit dans Honcho par cette session.
 
-La cause est connue et elle vient d'un couloir voisin, pas de moi — le lane
+La cause est connue et elle vient d'un couloir voisin, pas de moi — le couloir
 `mia:etc-claude-code` l'a mesurée le même jour : `HONCHO_MCP_BEARER_TOKEN` était
 absent de l'environnement de lancement, donc le `${...}` de `.mcp.honcho.json`
 s'est développé vide et la porte — vivante, et qui répond — a rendu **401**.
@@ -54,7 +59,7 @@ Les deux lectures tiennent, et elles ne coûtent pas la même chose.
 | | |
 |---|---|
 | ce que ça donne | cloison nette ; l'atelier de William démarre vierge, sans hériter des opus de Jerry |
-| ce que ça coûte | un sixième sac, et la mémoire inter-compositions se perd — un workspace par création ne monte pas |
+| ce que ça coûte | un sixième sac, et la mémoire inter-compositions se perd — un workspace par création ne passe pas à l'échelle |
 | conforme à | le mot de William, littéralement |
 
 ### Ce que je recommande, et pourquoi
@@ -69,6 +74,29 @@ juste est donc `william-composition` (ou `jamai-studio`) à côté de
 Une création n'est pas une cloison. Un atelier en est une.
 
 **C'est son mot, pas le mien.** Je le pose ; je ne le tranche pas.
+
+### Ce que la relecture adverse a montré de plus profond (♠️, 2026-08-15)
+
+La question « workspace ou session ? » n'est pas la vraie question. La règle de
+`HONCHO-COORDINATION.md` — *nom de session = nom du dossier de brief* — existe
+pour que la correspondance soit **auto-évidente**, portée par la structure et
+non par une table dans une tête. Or une session nommée `ava001` adossée au brief
+`briefs/william-jamai/` recrée exactement la table interdite — et ce brief a
+**déjà** sa session nommée (`william-jamai`, dans la table de COORDINATION),
+donc ce serait aussi une deuxième session pour le même brief.
+
+Le schéma n'a que deux rangs — workspace = atelier, session = voie/brief — et
+`ava001` est un objet de **troisième rang : une création**. Le schéma ne dit pas
+où vivent les créations. Deux résolutions propres, au choix de William :
+
+1. **La création reçoit son propre brief** — `briefs/ava001/` qui référence
+   `william-jamai` comme parent. La règle tient, la récursion est explicite,
+   et la session `ava001` devient légitime par sa propre porte.
+2. **Les créations vivent à l'intérieur des sessions** comme artefacts nommés —
+   la session reste `william-jamai`, `ava001` y est un objet, pas une session.
+
+Tant que ce rang manquant n'est pas nommé, chaque nouvelle création rejouera
+cette même hésitation.
 
 ---
 
@@ -110,7 +138,8 @@ Et les deux faits de consentement, qui ne se re-déduisent pas :
 - **L'audio de sa voix ne s'archive pas.** Analysé sur autorisation, supprimé
   après (`shred`), seuls les chiffres conservés.
 - **Rien ne s'écrase.** Quatre versions coexistent avec leur SHA-256 ; deux
-  d'entre elles reposent sur l'artefact et **il les aime quand même**.
+  d'entre elles reposent sur l'artefact et **elles ont été gardées, sur le mot
+  de celui qui les a entendues**.
 
 ### Ce que la session ne doit pas porter
 
@@ -125,7 +154,7 @@ reste dans git.
 
 | | |
 |---|---|
-| specs de la méthode | `rispecs/jamai/william-onboarding/` — 5 fichiers, 583 lignes |
+| specs de la méthode | `rispecs/jamai/william-onboarding/` — 5 fichiers |
 | PR amont | **jgwill/dotagents#24** — 7 fichiers, +920 lignes, 0 suppression |
 | l'issue qui tient le reste | **jgwill/dotagents#23** |
 | la session relue, publiquement | <https://gmusicassembly.com/session-ava001/> |

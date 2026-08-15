@@ -33,7 +33,10 @@ en-tête `Authorization: Bearer ${HONCHO_MCP_BEARER_TOKEN}` — le jeton reste d
 l'environnement, jamais dans le fichier. C'est **le seul** point de déclaration ;
 ne pas redéclarer `honcho` en portée user, ça le doublerait.
 
-## Le seul point à trancher : `HONCHO_WORKSPACE_ID=default`
+## Le premier point à trancher : `HONCHO_WORKSPACE_ID=default`
+
+*(« le seul », disait la première version — `HONCHO-SIEGE-AVA001.md` en a
+depuis nommé un second : le rang des créations dans le schéma.)*
 
 Le conteneur MCP est épinglé sur le workspace `default`. Tant qu'il y reste, **le
 compte `mia` et le compte `gmusic` écrivent dans le même sac**. Ce n'est pas une
@@ -85,6 +88,7 @@ du dossier de brief, pour qu'aucune table de correspondance ne soit nécessaire 
 | `jamai-voice-return` | `briefs/jamai-voice-return/BRIEF.md` |
 | `ligne-telephonique` | `briefs/ligne-telephonique/BRIEF.md` |
 | `william-jamai` | `briefs/william-jamai/PROMPT-DEMARRAGE.md` |
+| `structure-chanson` | `briefs/structure-chanson/BRIEF.md` |
 
 Une voie nouvelle = un dossier de brief **et** une session du même nom, le même
 jour. La règle d'`INDEX.md` (« qui écrit un brief ajoute sa ligne ») ne change pas ;
