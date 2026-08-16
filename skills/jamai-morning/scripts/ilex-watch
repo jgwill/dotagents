@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# ilex-watch — surveille l'atelier de WILLIAM sur son appareil ilex : un MIROIR
+# local de ce qu'il dépose dans son workspace `jamai` (port 4768 sur l'appareil).
+#
+# Commandé nommément par William le 2026-08-15 (op002, consigne parlée) :
+# « I will need a loop to run, in the terminal — I'm just going to look for on
+#   this compositions-jamai for transcriptions such as this one, as well as I'm
+#   going to obviously use Songbird to capture some elements. »
+#
+# Copié d'abies-watch (lui-même de jamai-watch). Les écarts 1-8 hérités sont
+# gardés ; trois écarts NEUFS, chacun payé ou mesuré aujourd'hui :
+#
+# ÉCART 9 — l'atelier local s'appelle `william`, PAS `jamai`. Le nom `jamai`
+#   désigne déjà l'atelier de Jerry sur eury (~/compositions-jamai, portail
+#   8828). Le 2026-08-08, une salle de William a été ouverte par erreur dans
+#   l'atelier de Jerry (william-op001, coquille vide, toujours là). Un miroir
+#   nommé jamai aurait fusionné les deux mondes en silence.
+#
+# ÉCART 10 — REMOTE est l'ALIAS ssh `ilex` (défini dans ~/.ssh/config : hôte
+#   tail3b11eb, port 8022, User u0_a194). Pas de -p en dur : ilex a déjà changé
+#   de tailnet une fois (2026-08-15) et seul l'alias a suivi.
+#
+# ÉCART 11 — le pool source est /sdcard/Recordings-jamai (ABSOLU — écart 6
+#   d'abies : ~/storage/shared est un lien que rsync ne résout pas de l'autre
+#   bout) ET ~/compositions-jamai. ATTENTION : depuis eury, tout appel au
+#   portail d'ilex doit passer par le tunnel ssh — `ilex:8768` répond 200
+#   depuis eury et c'est EURY qui se répond à elle-même (seul 8022 est relayé).
+#   Cette veille n'appelle AUCUN portail ; le crochet non plus (mesure locale
+#   + Whisper). Ne pas lui ajouter d'appel portail sans le tunnel.
+#
+#   démarrer : ilex-watch &        suivre : tail -f ~/.local/state/episode-voice/william-watch.log
+#   arrêter  : ilex-watch --stop   à blanc : ilex-watch --once
+set -uo pipefail
+
+EP="$HOME/.agents/skills/episode-voice-channel/scripts/episode"
+WS=william
+REMOTE=ilex
+
+export EPISODE_STATE_DIR="$HOME/.local/state/episode-voice/watch-standalone-$WS"
+mkdir -p "$EPISODE_STATE_DIR"
+STATE="$HOME/.local/state/episode-voice"
+LOG="$STATE/$WS-watch.log"
+PIDFILE="$STATE/$WS-watch.pid"
+LEDGER="$STATE/$WS-mine.txt"
+HOOK="$HOME/.agents/skills/jamai-morning/scripts/jamai-on-drop"
+MIN=60; MAX=180
+
+mkdir -p "$STATE"; touch "$LOG" "$LEDGER"
+
+say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+
+case "${1:-}" in
+  --stop)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      kill "$(cat "$PIDFILE")" && say "arrêté (pid $(cat "$PIDFILE"))"; rm -f "$PIDFILE"
+    else
+      echo "aucune veille en cours"
+    fi
+    exit 0 ;;
+  --status)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      echo "vivante — pid $(cat "$PIDFILE"), journal : $LOG"
+    else
+      echo "arrêtée"
+    fi
+    exit 0 ;;
+esac
+
+[ -x "$EP" ] || { echo "introuvable : $EP" >&2; exit 1; }
+
+if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "déjà en cours (pid $(cat "$PIDFILE")) — ilex-watch --stop pour l'arrêter" >&2
+  exit 1
+fi
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+
+# JAMAIS --delete (écart 2 d'abies) : un tirage qui échoue laisse le miroir
+# PÉRIMÉ, jamais VIDE.
+pull() {
+  local rc=0 d
+  rsync -a --timeout=45 -e "ssh -o BatchMode=yes -o ConnectTimeout=15" \
+    "$REMOTE:~/compositions-jamai/" "$HOME/compositions-$WS/" >/dev/null 2>&1 || rc=$?
+  for d in "/sdcard/Recordings-jamai" "~/downloads"; do
+    rsync -a --timeout=45 -e "ssh -o BatchMode=yes -o ConnectTimeout=15" \
+      "$REMOTE:$d/" "$HOME/Recordings-$WS/" >/dev/null 2>&1 || rc=$?
+  done
+  return $rc
+}
+
+once="${1:-}"
+[ "$once" = "--once" ] || say "veille démarrée (pid $$) — miroir de $REMOTE (atelier jamai de William) — crochet : $([ -x "$HOOK" ] && echo "$HOOK" || echo "aucun")"
+
+pull_ko=0
+while :; do
+  if pull; then
+    [ "$pull_ko" -gt 0 ] && say "tirage rétabli après $pull_ko échec(s)"
+    pull_ko=0
+  else
+    pull_ko=$(( pull_ko + 1 ))
+    { [ "$pull_ko" -eq 1 ] || [ $(( pull_ko % 10 )) -eq 0 ]; } \
+      && say "tirage en échec ×$pull_ko — miroir périmé, pas cassé ($REMOTE injoignable)"
+  fi
+
+  out="$("$EP" watch "$WS" 2>&1)" || out="ERREUR: episode watch a échoué"
+
+  case "$out" in
+    unchanged*) : ;;
+    ERREUR*) say "$out" ;;
+    *)
+      printf '%s\n' "$out" \
+        | sed -n 's|^  new ||p' \
+        | grep -v -E '/(composition\.json|composition\.json\.bak[^/]*|transcription_[0-9]+_(FR|EN)\.txt)$' \
+        | { if [ -s "$LEDGER" ]; then grep -v -F -f "$LEDGER" || true; else cat; fi; } \
+        | while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            say "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
+            if [ -x "$HOOK" ]; then
+              "$HOOK" "$f" < /dev/null >>"$LOG" 2>&1 \
+                && say "  crochet OK" \
+                || say "  crochet en échec (code $?)"
+            fi
+          done
+      ;;
+  esac
+
+  [ "$once" = "--once" ] && exit 0
+
+  d="$("$EP" watch "$WS" --interval 2>/dev/null || echo 300)"
+  case "$d" in ''|*[!0-9]*) d=300 ;; esac
+  [ "$d" -gt "$MAX" ] && d=$MAX
+  [ "$d" -lt "$MIN" ] && d=$MIN
+  sleep "$d"
+done
