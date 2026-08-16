@@ -20,6 +20,7 @@ faisait dire à Jerry que l'écosystème « n'est pas complètement vivant ».
 | `jamai-voice-return/BRIEF.md` | faire revenir la parole de Jerry | non vérifié | non vérifié |
 | `ligne-telephonique/BRIEF.md` | la ligne téléphonique | non vérifié | non vérifié |
 | `william-jamai/PROMPT-DEMARRAGE.md` | l'atelier de William | pane `w15` vide — **mais sa composition vit sur `ilex`**, pas ici | valide |
+| `william-jamai/PASSATION-260815-ava001-rise.md` | tout ce que la session `ava001-rise` a créé et poussé — pour les couloirs de William (`ep090-nairobi` et suivants) : issue/PR amont, inventaire, siège Honcho tranché, déblocage du jeton, branche gmtermux | **oui** — écrite le 2026-08-15 | à jour |
 | `william-jamai/MENTORAT-01-…md` | mentorat partition et vidéo | idem | non vérifié |
 
 ## ⬇ La veille `jamai` est passée sous supervision le 2026-08-14

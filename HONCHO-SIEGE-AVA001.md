@@ -34,7 +34,35 @@ Aucun ne porte `ava001`.
 
 ---
 
-## Le point à trancher : `ava001` est-il un workspace, ou une session ?
+## ✅ TRANCHÉ par William, 2026-08-15 : `ava001` est un workspace
+
+Son mot, réaffirmé après lecture de la recommandation ci-dessous : *« the
+'ava001' is a choice to create something that the whole platforms should
+support (miadi-dev, miadisabelle-workspace, gmusic-composition) all with some
+relations »*. Ce n'est pas une cloison d'atelier — c'est un objet que **toute
+la plateforme porte**, avec des relations vers les trois workspaces assis.
+L'analyse qui suit reste comme histoire de la décision ; elle ne la rouvre pas.
+
+**Le geste, pour la première session dont la porte MCP est ouverte** (la chaîne
+est réparée : `~/.bashrc` exporte `~/.env` depuis le 2026-08-15, porte prouvée
+`200` au handshake) :
+
+1. créer le workspace `ava001` ;
+2. ses métadonnées nomment les relations : `relates: [miadi-dev,
+   miadisabelle-workspace, gmusic-composition]`, `origin: jgwill/dotagents#23`,
+   `trigger: jgwill/miadi-orchestration-kit#39` ;
+3. les pairs de `HONCHO-COORDINATION.md` (`william`, `jerry`, `jamai`, …) y
+   siègent — aucun pair nouveau ;
+4. la session d'ouverture y verse les huit chiffres et les deux faits de
+   consentement du § « Ce que la session doit porter » ci-dessous.
+
+⚠️ La déclaration MCP de départ est `/home/mia/workspace/.mcp.honcho.json`
+(transport `http`, jeton par `${HONCHO_MCP_BEARER_TOKEN}` — jamais en clair).
+Ne pas redéclarer `honcho` dans une autre portée : ça le doublerait.
+
+---
+
+## L'histoire de la décision : workspace, ou session ?
 
 William a dit *« we would need a workspace […] specifically on this creation
 that we call ava opus number one »*. La structure déjà écrite dans
