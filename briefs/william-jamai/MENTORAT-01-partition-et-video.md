@@ -40,7 +40,9 @@ Le script `episode` a maintenant **8828 par défaut** — c'est l'atelier `jamai
 pas le tien. Sans la variable, tes pièces partiraient chez moi, sans erreur.
 
 ```bash
-export PIXEL_RECORDER_URL=https://ilex.ferret-harmonic.ts.net:8768
+# $ILEX_HOST se lit dans ~/.config/gmusic-routine/nodes.env
+# (fourni par gmusic1007/gmusic-routine, house/nodes.env)
+export PIXEL_RECORDER_URL="https://$ILEX_HOST:8768"
 cd ~/.agents/skills/episode-voice-channel
 ./scripts/episode preflight
 ```

@@ -16,9 +16,14 @@ William, et rapportées dans la conversation au moment de la mesure.
 | dossier | `~/compositions-aureon/ava001` sur ilex |
 
 **Éphémère de machine** (côté fork ; vrai au 2026-08-10, déjà bougé depuis —
-ilex a quitté `ferret-harmonic` pour `tail3b11eb` le 2026-08-15, et son portail
-ne se joint que depuis l'appareil lui-même) : herdr `w15:p1`, terminal
+ilex a changé de tailnet le 2026-08-15, et son portail ne se joint plus que
+depuis l'appareil lui-même) : herdr `w15:p1`, terminal
 `term_65893aea9491546`, transcript sous `~/.claude/projects/-home-gmusic/`.
+
+Le nom réseau courant d'ilex n'est pas dans ce dépôt : il se lit dans
+`$ILEX_HOST`, défini par `~/.config/gmusic-routine/nodes.env` (fourni par
+`gmusic1007/gmusic-routine`, `house/nodes.env`). Sans ce fichier, aucune
+coordonnée machine ne résout.
 
 ## La matière de départ
 
