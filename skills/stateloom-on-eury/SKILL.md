@@ -209,6 +209,7 @@ See `creative-session-fork` for how such a fork is made.
 | MCP 401 with the right-looking token | container re-minted it | `docker mcp-config`, update the config file |
 | Two editors, neither sees the other | a host-native loom shares `looms/` | **one loom per directory** — never both |
 | Canvas link opens the wrong board | `STATELOOM_CANVAS_URL` unset | it is set to the tailnet origin; keep it that way |
+| `render_diagram` → `EACCES` | it writes **beside the document**, and the episode root is `mia`-owned | pass `path` into the writable lane: `/data/ep333/salix/<name>.<ext>` — reading someone's board does not grant writing next to it |
 
 Logs before guessing:
 
