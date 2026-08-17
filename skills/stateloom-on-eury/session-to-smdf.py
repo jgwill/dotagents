@@ -1,20 +1,38 @@
 #!/usr/bin/env python3
 """
-session-to-smdf.py — turn a Claude Code session transcript into a state machine.
+session-to-smdf.py — the MECHANICS layer of a Claude Code session, as a state machine.
 
-Reads one or more .jsonl transcripts and emits an .smdf.json describing what the
-session ACTUALLY did: the operating states the agent passed through, the events
-that moved it, and every observed transition between them.
-
-Nothing here is invented. Every state, event and transition in the output was
-observed in the transcript; counts are carried into descriptions so the board
-shows weight, not just shape.
+Reads one or more .jsonl transcripts and emits an .smdf.json of the agent loop:
+the operating modes it passed through, the tool calls and hook fires that moved
+it, and every observed transition, each carrying its count.
 
     ./session-to-smdf.py TRANSCRIPT.jsonl [MORE.jsonl ...] \
-        --name AtelierJamaiDemain --namespace Miadi.Session \
-        -o /home/gmusic/salix/repos/stateloom-surface/looms/<name>.smdf.json
+        --name AtelierJamaiDemain --namespace Miadi.SessionMechanics \
+        -o <episode>/salix/<name>-mechanics.smdf.json
 
-Then open the board, or point an agent at it with set_project_file /data/<name>.
+═══ READ THIS BEFORE USING THE OUTPUT ═══════════════════════════════════════
+
+**This is one of two layers, and it is the instrument, not the account.**
+
+    MECHANICS (this script)      MEANING (hand-authored, or LLM-read)
+    ─────────────────────────    ────────────────────────────────────
+    Executing, Reading,          CURRENT REALITY → action steps →
+    Constrained, Delegating        DESIRED OUTCOME
+    Call_Bash, HookFired,        tension_established, owner_consented,
+    ToolReturned                   moment_of_truth
+    forensics: what the loop     conversation: what the work was
+    did, where the hooks bit       becoming, and what moved it
+
+The mechanics layer is genuinely useful — every hook fire, every tool call,
+every retry is in the JSONL and nowhere else, and counting them reveals things
+no one remembers accurately. It is NOT a description of the creative work, and
+an agent handed it as if it were will be confused about what happened.
+
+**Never present a mechanics board as "what the session did."** Say what it is:
+the instrument reading. Keep the two documents separately named, and relate them
+rather than merging them — `*-mechanics.smdf.json` beside the meaning board.
+
+Nothing here is invented: every state, event and transition was observed.
 """
 import argparse
 import collections
@@ -102,6 +120,7 @@ def main():
 
     current = "AwaitingHuman"
     states[current] += 1
+    prev_src = None
 
     def go(event, nxt):
         nonlocal current
@@ -111,9 +130,18 @@ def main():
             states[nxt] += 1
         current = nxt
 
-    for rec, _src in walk(args.transcripts):
+    for rec, src in walk(args.transcripts):
         lines += 1
         rtype = rec.get("type")
+
+        # A new transcript is a SEAM, not a continuation. Without this the last
+        # state of file N flows into the first event of file N+1 and the board
+        # shows transitions that never happened — the exact thing the word
+        # "lineage" claims to model and cannot.
+        if src != prev_src:
+            if prev_src is not None:
+                go("TranscriptBoundary", "AwaitingHuman")
+            prev_src = src
 
         if rtype == "user":
             msg = rec.get("message") or {}
@@ -131,6 +159,7 @@ def main():
             msg = rec.get("message") or {}
             content = msg.get("content")
             blocks = content if isinstance(content, list) else []
+            kinds = {b.get("type") for b in blocks if isinstance(b, dict)}
             used_tool = False
             for b in blocks:
                 if isinstance(b, dict) and b.get("type") == "tool_use":
@@ -138,13 +167,29 @@ def main():
                     name = b.get("name", "unknown")
                     tools_seen[name] += 1
                     go(ident("Call_" + name), family_of(name))
-            if not used_tool and blocks:
-                go("Answered", "AwaitingHuman")
+            if used_tool:
+                pass
+            elif kinds and kinds <= {"thinking", "redacted_thinking"}:
+                # Thinking is not answering, and it is emphatically not waiting
+                # for a human. Counting it as either was what made AwaitingHuman
+                # the largest state on the board while the agent was working.
+                go("Thought", "Deliberating")
+            elif blocks:
+                go("Answered", "Composing")
 
         elif rtype == "system":
             sub = (rec.get("subtype") or rec.get("level") or "notice")
-            if "hook" in json.dumps(rec)[:2000].lower():
-                go("HookFired", "Constrained")
+            if rec.get("hookErrors") or rec.get("preventedContinuation"):
+                # ONLY a hook that actually errored or stopped the turn is
+                # friction. A routine stop-hook summary fires once per turn and
+                # means nothing happened — reading it as constraint turns the
+                # turn count into a false finding about struggle.
+                go("HookBlocked", "Constrained")
+            elif sub == "stop_hook_summary":
+                # The reliable end-of-turn marker: exactly one per assistant turn.
+                go("TurnEnded", "AwaitingHuman")
+            elif sub == "turn_duration":
+                continue  # the same boundary, counted twice
             else:
                 go(ident("System_" + str(sub)), current)
 
@@ -196,6 +241,17 @@ def main():
                 "asynchronous": False,
                 "_source": {
                     "kind": "claude-code-transcript",
+                    "layer": "mechanics",
+                    "isNot": "This board is the agent loop's instrument reading — operating "
+                             "modes and tool calls, counted. It is NOT an account of what the "
+                             "work was or what it was becoming, and every state name here is "
+                             "an inference this script makes, not a label the transcript "
+                             "carries. For the account, read a MEANING board: the house "
+                             "pattern is /data/ep333/pane-capture-witnessed.smdf.json "
+                             "(CURRENT REALITY -> action steps -> DESIRED OUTCOME). This "
+                             "board also names only the lane whose transcripts it read; it "
+                             "says nothing about any repository it does not list under "
+                             "'transcripts'.",
                     "engine": "session-to-smdf.py",
                     "transcripts": [str(pathlib.Path(t).resolve()) for t in args.transcripts],
                     "lines": lines,

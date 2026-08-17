@@ -1,13 +1,13 @@
 ---
 name: stateloom-on-eury
 description: >
-  Use when a state machine, a board, or a session's behaviour needs to be modelled, drawn,
-  validated or generated into code on Eury — and when asking "what does the loom run here",
-  "is stateloom up", "quel port", "the canvas is frozen", "the board never moves", "MCP 401",
-  "how do I open the board from ilex". Also use when a Claude Code session transcript must be
-  turned into something inspectable: "what states did that session pass through", "map the
-  events of that session", "understand the ATELIER fork", "modélise la session". Covers the
-  containerised deployment, its memory ceiling, its boot behaviour, and the transcript→SMDF path.
+  Use when a state machine or board must be modelled, drawn, validated or generated into code
+  on Eury — and when asking "what does the loom run here", "is stateloom up", "quel port",
+  "the canvas is frozen", "the board never moves", "MCP 401", "how do I open the board from
+  ilex". Also use when deciding at which ALTITUDE to model a session — a meaning board a human
+  and an agent can converse with, versus a mechanics board that measures the agent loop — and
+  before generating either. Covers the containerised deployment, its memory ceiling, its boot
+  behaviour, the two-layer rule, and what a transcript can and cannot tell you.
 ---
 
 # The loom on Eury
@@ -39,11 +39,16 @@ writes `salix/` — this account's drop lane — and only *reads* the `mia`-owne
 DROP-ONLY enforced rather than recalled. Mount another episode by adding a volume next to the
 existing one in `.stateloom/docker-compose.yml`; never by copying documents into `looms/`.
 
-An agent is handed this door with the episode's own config:
+An agent is handed this door with:
 
 ```bash
-claude --mcp-config /srv/miadi/episodes/miadi-chronicle/2026-08-16-episode-333-the-fork-arrives-launched-not-handed-over/etc/mcp-config-stateloom-ep333.json
+claude --mcp-config /home/gmusic/.mcp.stateloom.json
 ```
+
+That file lives in `$HOME` (mode 600) and **not** in any repository on purpose — the episodes
+tree has a remote, and a bearer token committed there is a token published. Regenerate it after
+a rotation with the episode's `etc/stateloom-mcp-config.sh`, which reads the live token from
+`.stateloom/.env` and carries none itself.
 
 ## It is already running
 
@@ -109,38 +114,88 @@ npx -y @miadi/stateloom-skills@latest docker mcp-config
 | write a spec | `generate_rispec` → a RISE markdown document |
 | give the human a board | `http://100.88.23.103:4598/?doc=/data/<name>.smdf.json` |
 
+`?doc=` is **per-viewer** — measured: fetching it returns 200 and leaves `/api/config`'s
+`projectFile` unchanged, so two people handed two links do not repoint each other's board.
+
 The nine `@miadi/stateloom-skills` skills are installed in
 `stateloom-surface/.claude/skills/` — `stateloom-design`, `-codegen`, `-render`, `-rispec`,
 `-live-loop`, `-setup`, `-service`, `-tailnet`, `-docker`. Read those for depth; this file is
 only what is true *on this host*.
 
-## Turning a session into a state machine
+## Two layers, never merged
 
-The reason this is deployed. A Claude Code transcript is 10k+ JSONL lines nobody reads; the
-same session as a validated machine is 18 states and 115 transitions you can look at.
+A board is built at one of **two altitudes**, and handing someone the wrong one is the failure
+this section exists to prevent.
+
+| | **meaning** | **mechanics** |
+|---|---|---|
+| states | `CURRENT REALITY` → `Action step N` → `DESIRED OUTCOME` | `Deliberating`, `Executing`, `Composing`, `AwaitingHuman` |
+| events | `tension_established`, `owner_consented`, `moment_of_truth` | `Call_Bash`, `TurnEnded`, `ToolReturned` |
+| answers | what was the work becoming, and what moved it | what the loop did, and how much of it |
+| engine | an **LLM read pass**, then the human corrects it on the canvas | `session-to-smdf.py`, mechanically |
+| reads | the human's turns, the commit bodies, the issue text | the raw JSONL |
+| file | `<name>.smdf.json` | `<name>-mechanics.smdf.json` |
+
+**A mechanical extractor cannot produce a meaning board, and no amount of fixing will change
+that.** The tool sequence `Read · Edit · Bash · Bash` implements *"raise the contrast floor"*
+and *"delete the feature"* identically. Intent was never encoded in tool names, so it cannot be
+recovered from them — and a diagram whose shape is the same for every session on this host
+carries no information about any session.
+
+The meaning board's cheap, accurate input is **not** the raw transcript. In order: the human's
+turns (a few hundred lines, the whole intent spine), the commit bodies and issue text for
+whatever repo was touched — which usually already contain the state names nearly verbatim —
+and only then the assistant's text-only turns. Never the tool calls.
+
+Then the human drags a state name on the canvas and the agent sees it change. That
+bidirectionality is the loom's entire reason to exist, and a board generated from tool names
+has nothing in it a human would want to rename.
+
+Model the meaning board on `WitnessedCapture` (`/data/ep333/pane-capture-witnessed.smdf.json`)
+— the house pattern, a structural tension chart wearing a state machine's clothes, with
+`condition` guards on the transitions that need a human's word.
+
+### The mechanics layer — what it is honestly for
 
 ```bash
 ~/.agents/skills/stateloom-on-eury/session-to-smdf.py \
     ~/.claude/projects/<project>/<session-id>.jsonl \
-    --name MySession --namespace Miadi.Session \
-    -o /home/gmusic/salix/repos/stateloom-surface/looms/my-session.smdf.json
+    --name MySession --namespace Miadi.SessionMechanics \
+    -o <episode>/salix/my-session-mechanics.smdf.json
 ```
 
-Pass **several transcripts in chronological order** to model a fork lineage as one machine —
-forks share a history, and the interesting motion is usually across the seam, not inside one
-file. Then `set_project_file /data/my-session.smdf.json`, `validate_definition`, and hand the
-human the canvas URL.
+Several transcripts may be passed in chronological order; each file boundary emits an explicit
+`TranscriptBoundary` event rather than flowing one file's last state into the next file's first
+— **a fork seam is a discontinuity, and drawing it as continuous invents transitions.**
 
-States are the agent's operating mode (`Executing`, `Reading`, `Writing`, `Delegating`,
-`Constrained`, `AwaitingHuman`); events are the calls and interruptions that moved it; every
-transition carries its observed count. Nothing is invented — an unrecognised tool becomes its
-own state rather than being folded into a bucket that hides it.
+States are the agent's operating mode, events are its calls, and every transition carries its
+observed count. What that is good for: volume, distribution, and where a loop actually spent
+itself. What it is not: an account of the work.
 
-**Built and standing:** `/data/ep333/salix/ava002-lineage.smdf.json` — the ATELIER-jamai-demain lineage
-(`ava002-fork-pane--ATELIER-jamai-demain--creator-of-opus014-by-william-for-rise-framework`,
-forked into tmux `rise-ava002`, session `38c66d28`), five transcripts, 13,681 lines → 18
-states, 34 events, 115 transitions, validator clean. `Constrained` — hook fires — was entered
-**212 times**, the single loudest signal in that lineage after tool execution itself.
+**Read the counts before believing them.** Every state on a mechanics board is an inference
+this script makes, not a label the transcript carries — so a state name can be wrong even when
+the arithmetic is right. Two that were, and were fixed:
+
+- Thinking-only records were counted as `Answered → AwaitingHuman`, which made "waiting for the
+  human" the largest state on the board *while the agent was thinking*. Thinking is now
+  `Thought → Deliberating`, and `AwaitingHuman` is entered only at a real turn boundary.
+- `stop_hook_summary` fires **once per turn** and means nothing happened. Reading it as a hook
+  fire turned the turn count into a false finding about friction. `Constrained` is now entered
+  only when a record actually carries `hookErrors` or `preventedContinuation`.
+
+**Built and standing:** `/data/ep333/salix/ava002-mechanics.smdf.json` — five transcripts of
+the **`compositions-jamai`** lane (where the ATELIER fork ran; tmux `rise-ava002`, session
+`38c66d28`), 13,692 lines → 19 states, 35 events, 128 transitions, validator clean. Top
+states: `Deliberating` 1400, `Executing` 1311, `Composing` 616, `Interpreting` 248,
+`AwaitingHuman` 215. There is no `Constrained` state — across all 13,692 lines, **zero**
+records carried `hookErrors` or `preventedContinuation`.
+
+**A board names the lane it measured, and no other.** That one says nothing about
+`/workspace/repos/miadisabelle/gmtermux/`: those sessions ran under another identity on another
+host, and no transcript for them exists on Eury. A transcript-based engine cannot reach a day
+it has no transcript for — say that, rather than modelling something adjacent and letting the
+filename imply otherwise.
+
 See `creative-session-fork` for how such a fork is made.
 
 ## Traps, each one paid for
