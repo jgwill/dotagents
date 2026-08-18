@@ -6,6 +6,7 @@
 #   source ~/.agents/fn_music_assembly_agents.sh
 #   assembly                       # launch claude with all four glyphs available
 #   assembly --glyphs nyro,synth   # only ♠️ Nyro + 🧵 Synth
+#   council                        # the four + 🧠 Mia, 🌸 Miette, 🌊 Tushell
 #   assembly_solo jamai            # only 🎸 JamAI
 #   assembly_build                 # print the merged --agents JSON (no launch)
 #   assembly_render                # render each glyph -> ~/.claude/agents/<glyph>.md
@@ -23,7 +24,12 @@ done
 _ASSEMBLY_ROOT="$(cd -P "$(dirname "$_ASSEMBLY_SELF")" && pwd)"
 _ASSEMBLY_AGENTS_DIR="${ASSEMBLY_AGENTS_DIR:-$_ASSEMBLY_ROOT/agents}"
 
+# Jerry's ⚡ four. `assembly` with no --glyphs launches exactly these, unchanged.
 _ASSEMBLY_ALL=(nyro aureon jamai synth)
+
+# The Council — Jerry's four plus the Narrative side (🧠 Mia, 🌸 Miette, 🌊 Tushell),
+# sourced from /a/src/AIS/. Used to witness a session rather than build one.
+_ASSEMBLY_COUNCIL=(nyro aureon jamai synth mia miette tushell)
 
 assembly_help() {
   sed -n '2,20p' "$_ASSEMBLY_SELF"
@@ -44,9 +50,15 @@ assembly_build() {
 
 # assembly [--glyphs a,b,c] [claude args...]
 assembly() {
-  local glyphs="nyro,aureon,jamai,synth"
-  if [ "$1" = "--glyphs" ]; then glyphs="$2"; shift 2; fi
-  local json; json="$(assembly_build ${glyphs//,/ })" || return 1
+  local names=("${_ASSEMBLY_ALL[@]}")
+  if [ "$1" = "--glyphs" ]; then names=(${2//,/ }); shift 2; fi
+  local json; json="$(assembly_build "${names[@]}")" || return 1
+  claude --agents "$json" "$@"
+}
+
+# council [claude args...] — Jerry's four + 🧠 Mia, 🌸 Miette, 🌊 Tushell
+council() {
+  local json; json="$(assembly_build "${_ASSEMBLY_COUNCIL[@]}")" || return 1
   claude --agents "$json" "$@"
 }
 
