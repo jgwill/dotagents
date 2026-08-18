@@ -12,3 +12,6 @@
 ### `/home/gmusic/.agents/scripts/_env.sh`
 * jgwill/dotagents#27
 
+## `/ep300-seven-fields-research-alignment-renaud-260815-220df92d-1bb2-465b-b07d-4ba103dbd71e/abstract-set-a.md`
+
+
