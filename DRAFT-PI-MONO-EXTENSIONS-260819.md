@@ -46,38 +46,31 @@ Desktop-only: render.
 
 ## 2. Envisioned layout in this repo
 
-Keep each extension a folder that Pi can load alone. One README at the pack root names the chain. No shared `node_modules`. Shared measurement code, if it appears, is copied into the extension that needs it until a second consumer exists.
+Sit beside the folders that already live here. Each JamAI extension is a folder Pi can load alone. Shared measurement code goes in `lib/`. Proofs go in `tests/`.
 
 ```
-pi-mono/
-  README.md                 # chain map, android vs desktop, how to pi -e
-  jamai-watch/
-    index.ts
-    README.md
-  jamai-voice/
-    index.ts
-    README.md
-  jamai-songbird/
-    index.ts
-    README.md
-    midi.ts                 # bundled parser, only if songbird needs it
-  jamai-movement/
-    index.ts
-    README.md
-  jamai-abc/
-    index.ts
-    README.md
-    generators/             # path-cleaned fossils from songbird 01-generators/
-  jamai-falsify/
-    index.ts
-    README.md
-  jamai-render/
-    index.ts
-    README.md               # names the three host binaries; refuses to start without them
-  jamai-return/
-    index.ts
-    README.md
+dotagents/
+├── agents/
+├── skills/
+├── rispecs/
+├── briefs/
+├── extensions/
+│   └── pi/
+│       ├── jamai-watch/
+│       ├── jamai-voice/
+│       ├── jamai-songbird/
+│       ├── jamai-movement/
+│       ├── jamai-abc/
+│       ├── jamai-falsify/
+│       ├── jamai-render/
+│       └── jamai-return/
+├── lib/
+└── tests/
 ```
+
+Each `extensions/pi/jamai-*/` folder holds `index.ts` and `README.md`. `jamai-abc/` also holds path-cleaned `generators/`. `jamai-render/README.md` names the three host binaries and refuses to start without them.
+
+`lib/` is for parsers and measures used by more than one extension (MIDI read, stable-size watch). `tests/` is for those, not for a framework.
 
 `skills/composing-with-william`, `skills/jamai-morning`, and `skills/episode-voice-channel` stay where they are. The extensions read those files. They do not move them.
 
@@ -86,7 +79,7 @@ A later publish into `miadi-orchestration-kit/pi/jamai-extensions` is a copy, no
 Load one extension:
 
 ```bash
-pi -e /home/gmusic/.agents/pi-mono/jamai-watch/index.ts
+pi -e /home/gmusic/.agents/extensions/pi/jamai-watch/index.ts
 ```
 
 Do not add a root `package.json` until a second extension actually shares code.

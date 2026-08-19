@@ -21,7 +21,7 @@ Jerry's origin session (`session_jerry_origin_id` = `1937aa47-767f-4543-8cdc-257
 
 ## Pi-mono extensions — draft 260819
 
-The eight extensions that replace the Claude-code watch-and-wake loop (voice, Songbird, movement-score) are drafted in [`DRAFT-PI-MONO-EXTENSIONS-260819.md`](DRAFT-PI-MONO-EXTENSIONS-260819.md). Section 1 names each extension. Section 2 proposes a `pi-mono/` layout in this repo so every extension can be loaded alone with `pi -e` and only `jamai-render` needs host binaries. William opened [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32) and assigned it to Gerico1007 for review.
+The eight extensions that replace the Claude-code watch-and-wake loop (voice, Songbird, movement-score) are drafted in [`DRAFT-PI-MONO-EXTENSIONS-260819.md`](DRAFT-PI-MONO-EXTENSIONS-260819.md). Section 1 names each extension. Section 2 proposes `extensions/pi/jamai-*` beside `skills/`, with shared code in `lib/` and proofs in `tests/`. Every extension loads alone with `pi -e`. Only `jamai-render` needs host binaries. William opened [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32) and assigned it to Gerico1007 for review.
 
 ## Questions
 
