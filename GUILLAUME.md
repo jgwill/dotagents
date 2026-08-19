@@ -19,6 +19,10 @@
 
 Jerry's origin session (`session_jerry_origin_id` = `1937aa47-767f-4543-8cdc-257364ae2c52`) was exported on 2026-08-19 to `/home/gmusic/atelier-jerry-origin-1937aa47` — same classified layout as songbird-71bbe83b (interpreter projection, generators, scores, rendered, captures, sessiondata). The motion is now a skill, so the next `session_id` can be dropped the same way without reconstructing the night: `/home/gmusic/.agents/skills/miadi-hooks-interpreter-jamai` (`scripts/export-jamai-session.py --session-id <id> --dest /home/gmusic/<name>`).
 
+## Pi-mono extensions — draft 260819
+
+The eight extensions that replace the Claude-code watch-and-wake loop (voice, Songbird, movement-score) are drafted in [`DRAFT-PI-MONO-EXTENSIONS-260819.md`](DRAFT-PI-MONO-EXTENSIONS-260819.md). Section 1 names each extension. Section 2 proposes a `pi-mono/` layout in this repo so every extension can be loaded alone with `pi -e` and only `jamai-render` needs host binaries. William opened [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32) and assigned it to Gerico1007 for review.
+
 ## Questions
 
 ### What is into `/home/gmusic/salix/repos/jamai-core` that is not in `/home/gmusic/.agents` this is needed ?  
