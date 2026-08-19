@@ -1,10 +1,13 @@
-# Draft — Pi-mono JamAI extensions
+# HERE'S HOW WE WANT IT TO WORK NEXT TIME
+
+Draft — Pi-mono JamAI extensions.
 
 **Status:** draft for review. Not installed. Not a package yet.
 **Date:** 2026-08-19
 **Opened by:** William
 **Issue:** [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32)
 **Disc:** `GUILLAUME.md`
+**Pair:** [HOW WE DID IT THIS TIME](HOW-WE-DID-IT-THIS-TIME-260819.md) — the Claude-code + bash loop that already worked. This file replaces that loop.
 **Source session:** songbird-71bbe83b (episode 333) + the three Android doors Claude-code watched.
 
 These eight extensions replace the Claude-code loop that woke JamAI when William was recording voice, playing Songbird, or writing a movement-score. Each one is meant to run as a single `index.ts` via `pi -e`, with no npm dependency if the work can be done in-process or with a bundled script. Host binaries (`abc2midi`, `fluidsynth`, `ffmpeg`) live only in `jamai-render`.

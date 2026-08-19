@@ -19,6 +19,15 @@
 
 Jerry's origin session (`session_jerry_origin_id` = `1937aa47-767f-4543-8cdc-257364ae2c52`) was exported on 2026-08-19 to `/home/gmusic/atelier-jerry-origin-1937aa47` — same classified layout as songbird-71bbe83b (interpreter projection, generators, scores, rendered, captures, sessiondata). The motion is now a skill, so the next `session_id` can be dropped the same way without reconstructing the night: `/home/gmusic/.agents/skills/miadi-hooks-interpreter-jamai` (`scripts/export-jamai-session.py --session-id <id> --dest /home/gmusic/<name>`).
 
+## Two halves — this time / next time
+
+The two compositions came from a loop we should not lose, and that loop is not the next machine.
+
+1. **[HOW WE DID IT THIS TIME](HOW-WE-DID-IT-THIS-TIME-260819.md)** — measured 2026-08-19. Claude-code sessions `1937aa47` (Jerry) and `71bbe83b` (William fork) still live in herdr `w17`. Three zero-token bash watches (`jamai-watch`, `ilex-watch`, `abies-watch`) plus `jamai-on-drop`. State in `~/.local/state/episode-voice/`. The phone is a tray. Eury does everything after capture.
+2. **[HERE'S HOW WE WANT IT TO WORK NEXT TIME](DRAFT-PI-MONO-EXTENSIONS-260819.md)** — William's eight Pi extensions. Watch / voice / songbird / movement / abc / falsify / return must be able to live on Android. Only `jamai-render` stays desktop. Layout: `extensions/pi/jamai-*` beside `skills/`, shared code in `lib/`, proofs in `tests/`. Issue [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32).
+
+`scripts/_env.sh` holds the session ids. Do not start from the leftover inline loop in `~/.local/state/ilex-watch/` — that is the model holding `while true`.
+
 ## Pi-mono extensions — draft 260819
 
 The eight extensions that replace the Claude-code watch-and-wake loop (voice, Songbird, movement-score) are drafted in [`DRAFT-PI-MONO-EXTENSIONS-260819.md`](DRAFT-PI-MONO-EXTENSIONS-260819.md). Section 1 names each extension. Section 2 proposes `extensions/pi/jamai-*` beside `skills/`, with shared code in `lib/` and proofs in `tests/`. Every extension loads alone with `pi -e`. Only `jamai-render` needs host binaries. William opened [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32) and assigned it to Gerico1007 for review.
@@ -27,6 +36,11 @@ The eight extensions that replace the Claude-code watch-and-wake loop (voice, So
 
 ### What is into `/home/gmusic/salix/repos/jamai-core` that is not in `/home/gmusic/.agents` this is needed ?  
 * If any, it should be published and consumable by any of `/home/gmusic/.agents` and `/home/gmusic/salix/repos/miadi-orchestration-kit` that gets created for any agent type
+
+
+## Android testing...
+
+* given that `docker run -it termux/termux-docker` exist, there'S surely a sets of tests oand whatever could be conceived and deployed and attempt to make it work without the complicated need to test it on our Android device first...
 
 ## RELATED files
 
