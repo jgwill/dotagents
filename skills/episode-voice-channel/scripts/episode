@@ -547,6 +547,13 @@ cmd_video() {
 # or replaced picks the loop up exactly where it was.
 watch_dirs() {                       # the two folders an atelier writes into
   local ws="$1"
+  # A specialised atelier may deliberately have one incoming source only.
+  # Keep the default pair untouched for every existing workspace; callers that
+  # need a narrower watch pass one or more newline-separated paths explicitly.
+  if [ -n "${EPISODE_WATCH_DIRS:-}" ]; then
+    printf '%s\n' "$EPISODE_WATCH_DIRS"
+    return
+  fi
   if [ "$ws" = "main" ] || [ -z "$ws" ]; then
     printf '%s\n%s\n' "$HOME/compositions" "$HOME/Recordings"
   else
