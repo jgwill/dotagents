@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# episodes-related <chemin-texte.txt>
+#
+# Contrat avec la voie 1 : le crochet appelle ce script avec le chemin d'un
+# texte et dépose la sortie standard telle quelle dans une section « Épisodes
+# reliés ». Rien d'autre ne doit sortir sur stdout.
+#
+# Coût : zéro token de modèle, zéro appel réseau. ~30 ms.
+#
+# Le classement est gratuit et fiable ; la PREUVE ne l'est pas toujours, et la
+# sortie le dit. Mesuré le 2026-08-05 : quand la requête est de la parole de
+# Jerry et le corpus de la prose d'agent, le recouvrement de phrases tombe à
+# zéro alors que le classement reste juste. Jerry dit « espaces de travail »
+# (3×) et « moniteur » (2×) — introuvables dans le corpus ; le corpus dit
+# « atelier » 104 fois — un mot qu'il n'emploie jamais. D'où deux rangs
+# séparés : ce qui est prouvé, et ce qui demande un œil.
+set -uo pipefail
+
+Q="${1:-}"
+[ -n "$Q" ] && [ -f "$Q" ] || { echo "usage: episodes-related <fichier.txt>" >&2; exit 2; }
+
+MOTEUR="$HOME/.agents/skills/jamai-morning/scripts/jamai-related.py"
+[ -x "$MOTEUR" ] || { echo "moteur introuvable : $MOTEUR" >&2; exit 3; }
+
+"$MOTEUR" "$Q" --top 6 --min-phrases 0 --json 2>/dev/null | Q="$Q" python3 -c '
+import json, sys, os, time
+
+q = os.environ["Q"]
+try:
+    liens = json.load(sys.stdin)
+except Exception:
+    liens = []
+
+# Instant du dépôt : la date du fichier de requête. Sert à distinguer un
+# rapprochement (deux unités qui se ressemblent) d un RETOUR (une unité
+# ancienne que ce dépôt vient rouvrir) — le « spiral tracking over time » de
+# la compétence aureon-journal-events, section Archival Protocol.
+t_q = os.path.getmtime(q)
+
+# Le déclaré passe avant l inféré. jgwill/EchoThreads#115 établit qu Aureon
+# « lie chaque entrée à une issue GitHub dans Orpheus » : la cible d un lien
+# est une unité nommée, pas une ressemblance. Vérifié le 2026-08-05 —
+# jgwill/orpheus #587 renvoie à 673 704 711 717 759 784, #704 à 587 668,
+# #784 à 704, #717 à 587. Le graphe y est écrit à la main, pas calculé.
+# Chez nous il dort dans la prose : 5 renvois ep-NNN/op-NNN mesurés dans les
+# compositions, qu aucun champ ne porte. Un renvoi cité est exact et gratuit ;
+# la recherche ne sert qu à ce que personne n a déclaré.
+import re, glob
+ATELIERS = ("episodes", "jamai", "aureon", "nyro", "synth", "main")
+
+# Décision de Jerry, 2026-08-05 : aureon numérote jr-NNN. Le séparateur après
+# le numéro est donc un point chez aureon, un tiret ailleurs : le glob accepte
+# les deux.
+#
+# Et pour aureon la cible d un lien n est PAS une unité locale : l issue
+# EchoThreads#115 établit qu Aureon « lie chaque entrée à une issue GitHub
+# dans Orpheus ». Le {type} de l identifiant désigne l issue, sans rien
+# inférer. Les quatre vérifiées le 2026-08-05, toutes OPEN.
+#
+# Règle de Jerry, 2026-08-05 : AUCUNE MAJUSCULE. L identifiant entier est en
+# minuscules — un identifiant est un nom de fichier, il doit survivre à un
+# système insensible à la casse sans que deux entrées se confondent.
+# Types désabrégés par Jerry le 2026-08-05 : les abréviations d Edge Hub
+# tenaient à la casse mixte ; en bas de casse elles ne servaient plus à rien.
+# `musc` reste le seul abrégé, non nommé dans cette passe.
+JOURNAUX = {
+    "main":  ("jgwill/orpheus#587", "Main Journal — Jericho’s Reflections"),
+    "white": ("jgwill/orpheus#704", "Spiritual Journal — White Feather"),
+    "aven":  ("jgwill/orpheus#784", "Aven’s Loops — Emotional Anchors"),
+    "musc":  ("jgwill/orpheus#717", "Gmusic Lyrics — Spiritual Composition"),
+}
+
+# Formes d Edge Hub, encore possibles dans un vieux texte. Même posture que
+# pour la casse : on résout, et on signale — jamais corriger en silence.
+ANCIENS = {"mainj": "main", "whitef": "white", "avenl": "aven"}
+
+qtxt = open(q, encoding="utf-8", errors="replace").read()
+moi = os.path.basename(os.path.dirname(os.path.abspath(q)))
+declares = []
+for ref in sorted(set(re.findall(r"\b((?:ep|op|jr)-\d{3})\b", qtxt))):
+    if moi.startswith(ref):
+        continue
+    for atl in ATELIERS:
+        g = sorted(glob.glob(os.path.expanduser("~/compositions-%s/%s[-.]*" % (atl, ref))))
+        if g:
+            declares.append({"atelier": atl, "slug": os.path.basename(g[0])})
+            break
+dits = {(d["atelier"], d["slug"]) for d in declares}
+
+# Structure finale décidée par Jerry le 2026-08-05 :
+#   jr-NNN.{type}.{sujet}.v{yymmddhhmmss}      (12 chiffres, la seconde)
+# Dans cet atelier c est toujours Aureon qui écrit — {user} et {author}
+# d Edge Hub n ont plus d objet. Restent le type, LE SUJET, et la date.
+#
+# Le sujet se normalise comme les slugs op-NNN. Il est donc directement
+# comparable : jr-001.main.etincelle-partagee vise le même sujet que
+# op-002-etincelle-partagee, qui existe. Un sujet partagé est un lien
+# DÉCLARÉ inter-atelier — exact, gratuit, sans une once d inférence.
+# On reconnaît sans tenir compte de la casse pour ne rien manquer, puis on
+# normalise — et on SIGNALE tout identifiant qui n était pas déjà en minuscules
+# plutôt que de le corriger en silence.
+JR = re.compile(r"\bjr-(\d{3})\.([A-Za-z0-9]+)\.([A-Za-z0-9-]+)\.v(\d{12})\b")
+
+import unicodedata
+
+
+def normalise(s):
+    """Minuscules, tirets, sans accent ni ponctuation — sur toute la chaîne.
+    Même normalisation que les slugs op-NNN existants."""
+    s = unicodedata.normalize("NFKD", s.lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-")
+
+
+# Tous les sujets présents sur disque, une fois : slug moins son préfixe.
+sujets_connus = {}
+for atl in ATELIERS:
+    for d in sorted(glob.glob(os.path.expanduser("~/compositions-%s/*" % atl))):
+        if not os.path.isdir(d):
+            continue
+        nom = os.path.basename(d)
+        s = re.sub(r"^(?:ep|op)-\d{3}-", "", nom)
+        s = re.sub(r"^jr-\d{3}\.[a-z0-9]+\.", "", s)
+        s = re.sub(r"\.v\d{12}$", "", s)
+        sujets_connus.setdefault(normalise(s), (atl, nom))
+
+issues, sujets, versions, casse, vieux = [], [], {}, [], []
+for num, tpl, sujet, ts in JR.findall(qtxt + " " + moi):
+    brut = "jr-%s.%s.%s.v%s" % (num, tpl, sujet, ts)
+    if brut != brut.lower():
+        casse.append(brut)
+    tpl, sujet = tpl.lower(), normalise(sujet)
+    if tpl in ANCIENS:
+        vieux.append((tpl, ANCIENS[tpl]))
+        tpl = ANCIENS[tpl]
+    versions.setdefault((num, tpl, sujet), set()).add(ts)
+    if tpl in JOURNAUX and JOURNAUX[tpl] not in issues:
+        issues.append(JOURNAUX[tpl])
+    cible = sujets_connus.get(sujet)
+    if cible and cible[1] != moi and cible not in [s[0] for s in sujets]:
+        sujets.append((cible, sujet))
+# Deux v pour une même tête = deux versions d une entrée, pas deux entrées.
+multi = [k for k, v in versions.items() if len(v) > 1]
+
+# Un sujet déclaré fait taire l inféré, comme un renvoi nommé.
+dits |= {cible for cible, _ in sujets}
+
+def cree(l):
+    p = os.path.expanduser("~/compositions-%s/%s/composition.json" % (l["atelier"], l["slug"]))
+    try:
+        return json.load(open(p, encoding="utf-8")).get("created", "")
+    except Exception:
+        return ""
+
+def epoque(iso):
+    try:
+        return time.mktime(time.strptime(iso[:19], "%Y-%m-%dT%H:%M:%S"))
+    except Exception:
+        return None
+
+PROUVE = 4   # bigrammes rares partagés — seuil mesuré sur les 31 transcriptions
+
+prouves, a_voir = [], []
+for l in liens:
+    if (l["atelier"], l["slug"]) in dits:
+        continue          # déjà dit à la main : ne pas le redire en inféré
+    l["created"] = cree(l)
+    e = epoque(l["created"])
+    l["retour"] = bool(e and e < t_q - 86400)
+    if len(l.get("phrases", [])) >= PROUVE:
+        prouves.append(l)
+    elif l.get("terms"):
+        a_voir.append(l)      # sans un seul mot à montrer, il n y a rien à dire
+
+for d in declares:
+    d["created"] = cree(d)
+    e = epoque(d["created"])
+    d["retour"] = bool(e and e < t_q - 86400)
+
+def ligne(l):
+    marque = "🔁" if l["retour"] else "  "
+    jour = l["created"][:10] or "?"
+    return "%s %s/%s   (%s)" % (marque, l["atelier"], l["slug"], jour)
+
+print("🔗 Épisodes reliés")
+print(f"   {os.path.basename(q)} · corpus lu en entier · 0 token de modèle")
+print()
+
+if declares or issues or sujets:
+    print("DÉCLARÉS — nommés dans ce dépôt, rien à inférer")
+    for d in declares:
+        print(ligne(d))
+    for (atl, nom), sujet in sujets:
+        print("   %s/%s   (même sujet : %s)" % (atl, nom, sujet))
+    for url, titre in issues:
+        print("   %s   %s" % (url, titre))
+    print()
+
+if vieux:
+    for a, n in sorted(set(vieux)):
+        print("⚠  type « %s » : forme Edge Hub, désabrégée en « %s »." % (a, n))
+    print()
+
+if casse:
+    for b in sorted(set(casse)):
+        print("⚠  %s porte des majuscules — la règle est : aucune." % b)
+        print("   Normalisé pour la recherche : %s" % b.lower())
+    print()
+
+if multi:
+    for num, tpl, sujet in multi:
+        print("⚠  jr-%s.%s.%s porte %d horodatages : ce sont des VERSIONS"
+              % (num, tpl, sujet, len(versions[(num, tpl, sujet)])))
+        print("   d une même entrée, pas des entrées reliées.")
+    print()
+
+if prouves:
+    print("PROUVÉS — les mêmes mots dits des deux côtés")
+    for l in prouves:
+        print(ligne(l))
+        print("     " + " · ".join(f"« {p} »" for p in l["phrases"][:5]))
+    print()
+
+if a_voir:
+    print("À VÉRIFIER — pistes à juger, pas des liens : le vocabulaire diffère")
+    for l in a_voir[:3]:
+        print(ligne(l))
+        print("     mots communs : " + ", ".join(l["terms"][:6]))
+    print()
+
+if not declares and not issues and not sujets and not prouves and not a_voir:
+    print("Aucune unité proche. C’est une réponse, pas un échec.")
+    sys.exit(0)
+
+if any(l["retour"] for l in declares + prouves + a_voir):
+    print("🔁 = ce dépôt rouvre une unité plus ancienne — un retour, pas un voisin.")
+if not declares and not issues and not sujets and not prouves and a_voir:
+    print("Aucun lien PROUVÉ : le classement tient, la preuve manque.")
+    print("Ces pistes demandent un œil avant d’être affirmées.")
+'

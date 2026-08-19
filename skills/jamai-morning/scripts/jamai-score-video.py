@@ -1,0 +1,1 @@
+/home/gmusic/salix/repos/jamai-core/render/jamai-score-video.py

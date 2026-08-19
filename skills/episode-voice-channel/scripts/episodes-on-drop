@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+# episodes-on-drop <fichier> — le crochet de l'atelier `episodes`.
+#
+# Appelé par `episodes-watch` pour chaque fichier neuf tombé dans
+# ~/Recordings-episodes/. Il mesure, transcrit, RANGE dans un épisode, et
+# lance la recherche d'épisodes reliés. Il ne nomme rien : nommer est un
+# jugement, et le jugement reste à Jerry.
+#
+# ZÉRO token de modèle. bash + ffmpeg + python + Whisper (Groq, ~0,0001 $/min).
+#
+# Ce qu'il produit :
+#   ~/.local/state/episode-voice/drops-episodes/<nom>/
+#       verdict.txt   ce qui a été établi et ce qui reste à juger
+#       probe.txt     ffprobe
+#       mesure.txt    timbre, bandes, pouls
+#       texte.txt     (parole) transcription horodatée
+#       relies.txt    (si le chercheur de la voie 4 est posé) épisodes reliés
+#   et, sur le portail 8778 :
+#       l'épisode ep-NNN, avec le clip attaché et la transcription en section
+#
+# Le chercheur d'épisodes reliés est un contrat, pas une dépendance :
+#   $HOME/.agents/skills/episode-voice-channel/scripts/episodes-related <texte.txt>
+# S'il existe et est exécutable, sa sortie standard est déposée telle quelle.
+# S'il n'existe pas, le verdict le nomme comme un trou — il ne l'invente pas.
+set -uo pipefail
+
+F="${1:?usage: episodes-on-drop <fichier>}"
+[ -f "$F" ] || { echo "introuvable : $F" >&2; exit 1; }
+
+JD="$HOME/.agents/skills/jamai-morning/scripts"          # mesure/midi/accords, déjà éprouvés
+ED="$HOME/.agents/skills/episode-voice-channel/scripts"
+EP="$ED/episode"
+RELATED="$ED/episodes-related"                            # voie 4 — contrat, peut manquer
+STATE="$HOME/.local/state/episode-voice"
+OUT="$STATE/drops-episodes/$(basename "$F")"
+UNITE="$STATE/episodes-unite.txt"                         # dernier ep-NNN ouvert par le crochet
+LOCK="$STATE/episodes-numero.lock"                        # deux veilles ne réclament pas le même numéro
+FENETRE=5400                                              # 90 min : un même dépôt-séance reste un seul épisode
+
+# NE PAS hériter. Ce crochet range dans l'atelier episodes et nulle part
+# ailleurs. Le 2026-08-05, appelé depuis un shell où PIXEL_RECORDER_URL valait
+# 8768, il a interrogé l'atelier jamai, n'y a trouvé aucun ep-NNN, et y a
+# fabriqué ep-001, ep-002 et ep-003 — trois coquilles dans le mauvais atelier,
+# dont une portant une vidéo de guitare. Un crochet d'atelier fixe son portail.
+PIXEL_RECORDER_URL="${EPISODES_PORTAL:-https://localhost:8778}"
+export PIXEL_RECORDER_URL
+
+# Garde-fou : refuser de travailler si le portail joint n'est pas episodes.
+_ws="$(curl -sk --max-time 10 "$PIXEL_RECORDER_URL/" 2>/dev/null \
+       | grep -o 'data-current-workspace="[^"]*"' | head -1 | cut -d'"' -f2)"
+if [ "${_ws:-}" != "episodes" ]; then
+  echo "REFUS : $PIXEL_RECORDER_URL sert l'atelier « ${_ws:-injoignable} », pas episodes. Rien fait." >&2
+  exit 1
+fi
+
+mkdir -p "$OUT" "$STATE/drops-episodes"
+
+# Refus net : un fichier que l'atelier a produit lui-même n'est pas un dépôt.
+# La veille le filtre déjà, mais le crochet ne doit pas dépendre de son appelant
+# — appelé à la main le 2026-08-05, il a ouvert un episode sur notre propre audio.
+if grep -qxF "$(basename "$F")" "$HOME/.local/state/episode-voice/episodes-mine.txt" 2>/dev/null; then
+  echo "$(basename "$F") est une production de l'atelier, pas un dépôt. Rien fait."
+  exit 0
+fi
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"; rmdir "$LOCK" 2>/dev/null || true' EXIT
+
+: > "$OUT/verdict.txt"
+dire() { printf '%s\n' "$*" | tee -a "$OUT/verdict.txt"; }
+
+# ------------------------------------------------------------------ 1. mesure
+case "$(printf '%s' "$F" | tr '[:upper:]' '[:lower:]')" in
+  *.m4a|*.mp3|*.wav|*.mp4|*.mov|*.webm|*.ogg|*.flac) ;;
+  *.mid|*.midi)
+    python3 "$JD/jamai-midi.py" "$F" > "$OUT/notes.txt" 2>&1 \
+      && dire "MIDI — relevé dans $OUT/notes.txt. Rien rangé : un MIDI n'est pas un épisode." \
+      || dire "MIDI illisible."
+    exit 0 ;;
+  *)
+    dire "type non traité : $(basename "$F"). Rien rangé."
+    exit 0 ;;
+esac
+
+ffprobe -v error -show_format -show_streams -of default=noprint_wrappers=1 "$F" > "$OUT/probe.txt" 2>&1
+ffmpeg -v error -y -i "$F" -map 0:a:0 -ac 1 -ar 22050 "$TMP/a.wav" 2>/dev/null \
+  || { dire "aucune piste audio exploitable. Rien rangé."; exit 0; }
+
+python3 "$JD/jamai-measure.py" "$TMP/a.wav" > "$OUT/mesure.txt" 2>&1 || true
+cen=$(sed -n 's/^centroïde spectral *: *\([0-9]*\) Hz/\1/p' "$OUT/mesure.txt" | head -1)
+sub=$(sed -n 's/^ *0– *250 Hz *: *\([0-9.]*\) %.*/\1/p'     "$OUT/mesure.txt" | head -1)
+dur=$(sed -n 's/^durée *: *\([0-9.]*\) s.*/\1/p'            "$OUT/mesure.txt" | head -1)
+
+# LE SPECTRE NE SÉPARE PAS LA PAROLE DU CHANT. Établi le 2026-08-05 sur les
+# sept dépôts réels de Jerry, et c'est un revirement : deux seuils successifs
+# ont été essayés et les deux ont refusé un vrai dépôt.
+#
+#   consigne parlée, 8,7 s   → 342 Hz de centroïde, 42,6 % sous 250 Hz
+#   chant, 7,6 s             → 465 Hz              , 38,8 %
+#
+# Le chant est PLUS aigu et PLUS clair que la parole. Aucune ligne ne passe
+# entre les deux. La densité de mots ne tranche pas non plus : 1,38 mot/s pour
+# la consigne, 1,3 pour le chant.
+#
+# Donc on ne classe plus ici. On transcrit, et c'est le CONTENU qui décide —
+# une transcription qui ne porte pas de mots ne range rien. La mesure reste
+# écrite dans mesure.txt : elle informe, elle ne juge plus.
+kind=parole
+[ "${sub:-0}" != "" ] && awk "BEGIN{exit !(${sub:-0} > 65 && ${cen:-999} < 260)}" && kind=musique
+
+if [ "$kind" != parole ]; then
+  # Un seul cas reste écarté sans transcription : le grave massif et sourd d'un
+  # fredon ou d'un bourdon — 73,1 % sous 250 Hz et 217 Hz de centroïde sur le
+  # fredon de Jerry. Aucune parole mesurée n'approche ces deux valeurs à la fois.
+  dire "MUSIQUE TENUE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz."
+  dire "Pas rangé en épisode : aucune parole possible à ce grave-là."
+  dire "Mesure : $OUT/mesure.txt"
+  exit 0
+fi
+
+# ------------------------------------------------------------- 2. transcription
+KEY=$(grep -m1 '^GROQ_API_KEY=' "$HOME/.env" 2>/dev/null | cut -d= -f2- | tr -d '"'"'"'' | tr -d '\r')
+if [ -z "${KEY:-}" ]; then
+  dire "PAROLE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz."
+  dire "TROU : pas de GROQ_API_KEY dans ~/.env — sans transcription, rien à ranger ni à relier."
+  exit 1
+fi
+
+ffmpeg -v error -y -i "$F" -map 0:a:0 -c:a aac -b:a 96k -ac 1 "$TMP/a.m4a" 2>/dev/null
+curl -s --max-time 300 https://api.groq.com/openai/v1/audio/transcriptions \
+  -H "Authorization: Bearer $KEY" -F "file=@$TMP/a.m4a" \
+  -F model=whisper-large-v3 -F language=fr -F response_format=verbose_json \
+  > "$TMP/g.json" 2>/dev/null
+
+python3 - "$TMP/g.json" > "$OUT/texte.txt" <<'PY' 2>/dev/null || true
+import json, sys
+d = json.load(open(sys.argv[1]))
+if 'error' in d:
+    print('ERREUR:', d['error']); raise SystemExit
+for s in d.get('segments', []):
+    print(f"[{s['start']:6.1f}] {s['text'].strip()}")
+PY
+
+if [ ! -s "$OUT/texte.txt" ] || grep -q '^ERREUR:' "$OUT/texte.txt"; then
+  dire "PAROLE — ${dur:-?} s, centroïde ${cen:-?} Hz."
+  dire "TROU : transcription indisponible ($(head -c 120 "$OUT/texte.txt" 2>/dev/null))."
+  dire "Le clip est intact dans $F — rien n'est perdu, seulement non rangé."
+  exit 1
+fi
+mots=$(wc -w < "$OUT/texte.txt")
+dire "PAROLE — ${dur:-?} s, centroïde ${cen:-?} Hz, ${sub:-?} % sous 250 Hz, $mots mots."
+
+# ------------------------------------------------------- 3. quel épisode reçoit
+# « créé ou complété » : une rafale du même matin reste un seul épisode ; un
+# dépôt qui arrive après la fenêtre en ouvre un neuf. La règle est un CHOIX,
+# elle est ici pour être discutée, pas pour être devinée.
+i=0
+while ! mkdir "$LOCK" 2>/dev/null; do
+  i=$((i+1)); [ "$i" -gt 60 ] && { dire "TROU : verrou de numérotation tenu depuis 60 s — rien rangé."; exit 1; }
+  sleep 1
+done
+
+slug=""
+
+# --- 3a. la destination que Jerry a dite, si elle est dite ------------------
+# UNE SEULE GARDE, et c'est un revirement mesuré. J'en avais posé deux ; la
+# seconde — « ne lire que de la PAROLE » — a été retirée le 2026-08-05 après
+# mesure, parce qu'elle refusait le seul cas qui comptait.
+#
+# Le seuil spectral ne sépare pas la parole du chant. Mesuré sur sept dépôts
+# réels : la consigne de 8,7 s « mets ça dans l'épisode 9 » sort à 342 Hz de
+# centroïde et 42,6 % sous 250 Hz, tandis que le chant de 7,6 s sort à 465 Hz
+# et 38,8 % — le chant est PLUS aigu et PLUS clair que la parole. Aucune ligne
+# ne passe entre les deux. La densité de mots ne tranche pas davantage : 1,38
+# mot/s pour la consigne, 1,3 pour le chant.
+#
+# Mais la garde était inutile : le lecteur de destination EST son propre
+# filtre. Il n'accepte que des formules explicites — « épisode 9 », « pars un
+# opus ». L'hallucination de Whisper sur une piste instrumentale (« Sous-titrage
+# Société Radio-Canada », vérifié sur la feuille capo et sur le canon) n'en
+# contient aucune et ressort en « courant ». Le bruit se filtre tout seul.
+#
+# Reste la garde qui, elle, est nécessaire : ne jamais obéir à notre propre
+# voix. Nos audios disent « épisode 9 » parce que c'est nous qui l'avons écrit.
+MINE="$STATE/episodes-mine.txt"
+DEST="$ED/destination-du-depot"
+if [ -x "$DEST" ] && [ -s "$OUT/texte.txt" ] \
+   && ! grep -qxF "$(basename "$F")" "$MINE" 2>/dev/null; then
+  lu="$("$DEST" "$OUT/texte.txt" 2>/dev/null | head -1)"
+  genre="$(printf '%s' "$lu" | cut -f1)"
+  valeur="$(printf '%s' "$lu" | cut -f2)"
+  raison="$(printf '%s' "$lu" | cut -f3)"
+  case "$genre" in
+    unite)
+      case "$valeur" in
+        ep-*)
+          reel="$(curl -sk --max-time 15 "$PIXEL_RECORDER_URL/api/compositions" \
+            | python3 -c '
+import json,sys
+p=sys.argv[1]
+for c in json.load(sys.stdin):
+    if c.get("slug","").startswith(p): print(c["slug"]); break' "$valeur" 2>/dev/null)"
+          if [ -n "$reel" ]; then
+            slug="$reel"; dire "DESTINATION DITE — $raison → $slug"
+          else
+            dire "DESTINATION DITE — $raison, mais $valeur n'existe pas encore."
+            dire "  Je ne le crée pas : ouvrir un épisode qu'il a nommé sans qu'il existe est un jugement."
+          fi ;;
+        *)
+          dire "DESTINATION DITE — $raison → $valeur : un autre atelier. Rien rangé ici." ;;
+      esac ;;
+    neuf)
+      dire "DESTINATION DITE — $raison : il demande une unité neuve." ;;
+    *) : ;;
+  esac
+fi
+
+if [ -z "$slug" ] && [ -s "$UNITE" ]; then
+  read -r prev_slug prev_ts < "$UNITE" || true
+  now=$(date +%s)
+  if [ -n "${prev_slug:-}" ] && [ $(( now - ${prev_ts:-0} )) -lt "$FENETRE" ]; then
+    # le vérifier sur le portail, jamais le croire sur parole
+    if "$EP" status 2>/dev/null | grep -q -- "$prev_slug"; then slug="$prev_slug"; fi
+  fi
+fi
+
+if [ -z "$slug" ]; then
+  n="$(curl -sk --max-time 15 "$PIXEL_RECORDER_URL/api/compositions" | python3 -c '
+import json, re, sys
+n = 0
+for c in json.load(sys.stdin):
+    m = re.match(r"ep-(\d+)", c.get("slug", ""))
+    if m: n = max(n, int(m.group(1)))
+print("%03d" % (n + 1))' 2>/dev/null || true)"
+  case "$n" in ''|*[!0-9]*) dire "TROU : numéro d'épisode indéterminable — portail muet. Rien rangé."; exit 1 ;; esac
+  # Titre nu : `ep-009`. Le crochet ne nomme pas — nommer est le jugement qui
+  # reste. Le renommage plus tard ne coûte rien (episodes-rename).
+  slug="$("$EP" open "ep-$n" 2>/dev/null | tail -1)"
+  [ -n "$slug" ] || { dire "TROU : création de ep-$n refusée par le portail. Rien rangé."; exit 1; }
+  dire "ÉPISODE OUVERT — $slug (titre nu : à nommer)."
+else
+  dire "ÉPISODE COMPLÉTÉ — $slug (dépôt dans la fenêtre de $((FENETRE/60)) min)."
+fi
+printf '%s %s\n' "$slug" "$(date +%s)" > "$UNITE"
+rmdir "$LOCK" 2>/dev/null || true
+
+# ------------------------------------------ 4. attacher le clip et le transcrit
+base="$(basename "$F")"
+if curl -sk --max-time 60 -X POST "$PIXEL_RECORDER_URL/api/compositions/$slug/clips" \
+     -H 'Content-Type: application/json' \
+     -d "$(python3 -c 'import json,sys; print(json.dumps({"filename": sys.argv[1], "label": "dépôt " + sys.argv[2]}))' "$base" "$(date '+%Y-%m-%d %H:%M')")" \
+     | grep -q '"success":true'; then
+  dire "  clip attaché — $base"
+else
+  dire "  TROU : clip non attaché — $base reste dans ~/Recordings-episodes/"
+fi
+
+python3 - "$OUT/texte.txt" "$slug" "$base" "$PIXEL_RECORDER_URL" <<'PY' >>"$OUT/verdict.txt" 2>&1 || true
+import json, sys, urllib.request, ssl
+texte, slug, src, portal = sys.argv[1:5]
+body = json.dumps({"text": open(texte).read(), "lang": "fr",
+                   "label": "Transcription du dépôt", "sourceFilename": src}).encode()
+ctx = ssl._create_unverified_context()
+req = urllib.request.Request(f"{portal}/api/compositions/{slug}/texts", data=body,
+                             headers={"Content-Type": "application/json"}, method="POST")
+try:
+    r = json.load(urllib.request.urlopen(req, context=ctx, timeout=60))
+    print("  transcription déposée" if r.get("success") else f"  TROU : transcription refusée — {r}")
+except Exception as e:
+    print(f"  TROU : transcription refusée — {e}")
+PY
+
+# ------------------------------------------------- 5. les épisodes reliés (v4)
+if [ -x "$RELATED" ]; then
+  # Le portail nomme chaque section texte transcription_<AAAAMMJJHHMMSS>_FR.txt :
+  # la granularité est la SECONDE. Deux dépôts dans la même seconde portent le
+  # même nom et le second écrase le premier sur disque — silencieusement, avec
+  # un 200. Vu le 2026-08-05 à 07:25:42 : la transcription de ep-009 avait
+  # disparu du disque, remplacée par les reliés (elle ne survivait que dans le
+  # champ content de composition.json). On laisse donc passer la seconde.
+  sleep 2
+  if "$RELATED" "$OUT/texte.txt" > "$OUT/relies.txt" 2>"$TMP/rel.err" && [ -s "$OUT/relies.txt" ]; then
+    python3 - "$OUT/relies.txt" "$slug" "$PIXEL_RECORDER_URL" <<'PY' >>"$OUT/verdict.txt" 2>&1 || true
+import json, sys, urllib.request, ssl
+relies, slug, portal = sys.argv[1:4]
+corps = open(relies).read()
+ctx = ssl._create_unverified_context()
+
+def post(path, body):
+    req = urllib.request.Request(f"{portal}{path}", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    return json.load(urllib.request.urlopen(req, context=ctx, timeout=60))
+
+# `links` n'est PAS dans la liste blanche du PUT du portail — un links[] écrit
+# par l'API disparaîtrait en silence avec un 200. On dépose donc les relations
+# là où elles survivent : une section texte (un vrai fichier sur disque).
+try:
+    r = post(f"/api/compositions/{slug}/texts",
+             {"text": corps, "lang": "fr", "label": "Épisodes reliés"})
+    print("  épisodes reliés déposés" if r.get("success") else f"  TROU : reliés refusés — {r}")
+except Exception as e:
+    print(f"  TROU : reliés refusés — {e}")
+PY
+    dire "  reliés trouvés : $(grep -c . "$OUT/relies.txt") lignes → $OUT/relies.txt"
+  else
+    dire "  TROU : $RELATED a échoué — $(head -c 160 "$TMP/rel.err" 2>/dev/null)"
+  fi
+else
+  dire "  TROU NOMMÉ : pas de chercheur d'épisodes reliés en $RELATED (voie 4)."
+  dire "  La transcription est en place ; la recherche se rejouera dès qu'il sera posé :"
+  dire "    $RELATED $OUT/texte.txt"
+fi
+
+# ------------------------------------------------------------- 6. ce qui reste
+dire ""
+dire "RESTE À JUGER — nommer $slug. Proposition de titre : personne, c'est le jugement."
+dire "  transcription : $OUT/texte.txt"
+dire "  épisode       : $HOME/compositions-episodes/$slug/"
+dire "  renommer      : $ED/episodes-rename $slug \"<titre>\""

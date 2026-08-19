@@ -81,4 +81,8 @@
 * **STATUS:** 
 * **MMOT:** 
   
+### `stateloom-on-eury`
+* **STATUS:** Written 2026-08-16. Describes the containerised loom deployed on Eury (one port 4598, loopback + tailnet, 1.25 GiB hard memory ceiling, returns by itself after reboot) and what an agent can actually do with it. Ships `session-to-smdf.py`, which turns Claude Code transcripts into a validated state machine — proven on the ATELIER-jamai-demain lineage: 5 transcripts, 13,681 lines → 18 states, 34 events, 115 transitions.
+* **MMOT:** The transcript→SMDF mapping is a first reading, not the last one: states are the agent's operating mode and events are tool calls. The richer model would key states on *what the work was becoming* rather than which tool was open — which is where this meets RISE, since a session's machine and its rispec describe the same motion from two directions.
+  
 deep-research-foundations/ is being developped into /usr/local/src/mightyeagle/skills/
