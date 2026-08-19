@@ -2,7 +2,7 @@
 
 **Status:** measured on eury, 2026-08-19. The loop that produced the two
 compositions. Do not treat this as the next design.
-**Pair:** [HERE'S HOW WE WANT IT TO WORK NEXT TIME](DRAFT-PI-MONO-EXTENSIONS-260819.md)
+**Pair:** [recreate](RECREATE-THE-WORK-260819.md) · [missing](MISSING-AND-DEPENDENCIES-260819.md) · [next time](DRAFT-PI-MONO-EXTENSIONS-260819.md)
 **Disc:** `GUILLAUME.md`
 **Sessions that still hold the room** (`scripts/_env.sh`):
 

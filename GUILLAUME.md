@@ -5,7 +5,10 @@
 ## Notes
 
 * There's 4 scripts that it always run maybe after it generated ABC and those 4 scripts are :
-{{ Jerry list scripts here }}
+    1. `abc2midi`
+    2. `abcm2ps` + `rsvg-convert`
+    3. `fluidsynth` (reverb off: `%%MIDI control 91 0` / `93 0`)
+    4. `ffmpeg` via `jamai-defile.py` / `jamai-clip` / `jamai-publish-melody`
 
 ## pi-coding-agent extensions to have either on the android device Pi running with what is possible there
 
@@ -24,7 +27,9 @@ Jerry's origin session (`session_jerry_origin_id` = `1937aa47-767f-4543-8cdc-257
 The two compositions came from a loop we should not lose, and that loop is not the next machine.
 
 1. **[HOW WE DID IT THIS TIME](HOW-WE-DID-IT-THIS-TIME-260819.md)** — measured 2026-08-19. Claude-code sessions `1937aa47` (Jerry) and `71bbe83b` (William fork) still live in herdr `w17`. Three zero-token bash watches (`jamai-watch`, `ilex-watch`, `abies-watch`) plus `jamai-on-drop`. State in `~/.local/state/episode-voice/`. The phone is a tray. Eury does everything after capture.
-2. **[HERE'S HOW WE WANT IT TO WORK NEXT TIME](DRAFT-PI-MONO-EXTENSIONS-260819.md)** — William's eight Pi extensions. Watch / voice / songbird / movement / abc / falsify / return must be able to live on Android. Only `jamai-render` stays desktop. Layout: `extensions/pi/jamai-*` beside `skills/`, shared code in `lib/`, proofs in `tests/`. Issue [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32).
+2. **[RECREATE THE WORK](RECREATE-THE-WORK-260819.md)** — the brief to hand an LLM after `DÉPÔT`. Points at both drops (`gen013.py`, `gen018.py`) and the generator header contract.
+3. **[MISSING AND DEPENDENCIES](MISSING-AND-DEPENDENCIES-260819.md)** — what `.agents` has, what it only symlinks, what is still a gap. jamai-core `listen/` is required and not vendored. `extensions/pi/` does not exist.
+4. **[HERE'S HOW WE WANT IT TO WORK NEXT TIME](DRAFT-PI-MONO-EXTENSIONS-260819.md)** — William's eight Pi extensions. Watch / voice / songbird / movement / abc / falsify / return must be able to live on Android. Only `jamai-render` stays desktop. Layout: `extensions/pi/jamai-*` beside `skills/`, shared code in `lib/`, proofs in `tests/`. Issue [Gerico1007/dotagents#32](https://github.com/Gerico1007/dotagents/issues/32).
 
 `scripts/_env.sh` holds the session ids. Do not start from the leftover inline loop in `~/.local/state/ilex-watch/` — that is the model holding `while true`.
 
@@ -36,6 +41,7 @@ The eight extensions that replace the Claude-code watch-and-wake loop (voice, So
 
 ### What is into `/home/gmusic/salix/repos/jamai-core` that is not in `/home/gmusic/.agents` this is needed ?  
 * If any, it should be published and consumable by any of `/home/gmusic/.agents` and `/home/gmusic/salix/repos/miadi-orchestration-kit` that gets created for any agent type
+* Measured 260819: the four `listen/` tools (`jamai-midi.py`, `jamai-measure.py`, `jamai-chords.py`, `jamai-chords-audio.py`). They are the ear. Only symlinks in `.agents`. This is Jerry's tension #1 in [`MISSING-AND-DEPENDENCIES-260819.md`](MISSING-AND-DEPENDENCIES-260819.md).
 
 
 ## Android testing...
