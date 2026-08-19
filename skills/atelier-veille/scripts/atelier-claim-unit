@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# atelier-claim-unit <atelier> … — réclame le prochain numéro d'unité, sous verrou.
+#
+# UN SEUL allocateur pour les trois ateliers (décision de Jerry, 2026-08-05) :
+# l'identifiant est partout  <unite>-NNN<queue>.  Le NUMÉRO porte l'unicité,
+# donc l'allocateur et sa règle anti-collision sont nécessaires partout — c'est
+# ce que l'idée d'identifiant purement horodaté avait fait croire évitable.
+#
+#   atelier-claim-unit episodes "Veille tous ateliers"
+#       -> ep-009-veille-tous-ateliers        (le portail dérive le slug)
+#   atelier-claim-unit aureon --type main "Étincelle partagée"
+#       -> jr-001.main.etincelle-partagee.v260805114230
+#   atelier-claim-unit <atelier> --peek       -> le prochain numéro, sans rien réclamer
+#
+# Une VERSION d'une entrée existante garde sa tête et ne consomme pas de numéro :
+#   atelier-claim-unit aureon --version-de jr-001.main.etincelle-partagee
+#       -> jr-001.main.etincelle-partagee.v260805114512
+# C'est « ne jamais écraser une source sans garder la sortante », portée par le
+# nom : la tête identifie l'entrée, le v identifie la version.
+#
+# TROIS sources de vérité pour le maximum, et on prend la plus haute des trois.
+# Aureon n'a AUCUN portail : un allocateur qui n'interroge qu'une API ne peut
+# pas le servir. Il lit donc aussi le disque et un registre local.
+#
+#   1. le portail, s'il est déclaré      (op-NNN, ep-NNN — l'existant en service)
+#   2. ~/compositions-<atelier>/         (ce qui est déjà rangé sur disque)
+#   3. $AV_STATE/<atelier>-unites.txt    (ce qui a été réclamé sans être encore
+#                                         créé — sinon deux appels d'affilée sur
+#                                         un atelier sans portail rendraient
+#                                         jr-001 deux fois)
+#
+# L'horodatage de la queue ne sert PAS à l'unicité : il départage si deux
+# entrées portaient malgré tout le même numéro.
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/atelier-veille-lib.sh"
+
+ATELIER="${1:?usage: atelier-claim-unit <atelier> \"<Titre>\" | --peek | --type T \"<Sujet>\" | --version-de <tête>}"; shift
+PEEK=0; TITRE=""; TYPE=""; TETE=""
+
+# Les types de journal d'aureon, désabrégés par Jerry le 2026-08-05 : les
+# abréviations d'Edge Hub tenaient à la casse mixte et ne servaient plus en bas
+# de casse. `musc` reste le seul abrégé, non nommé dans cette passe.
+# On AVERTIT sur un type hors liste, on ne REFUSE pas : la série bouge encore
+# (`music` compléterait), et bloquer figerait un choix qui appartient à Jerry.
+# Mais une faute de frappe muette produirait un jr-NNN.mian.… qui a l'air bon —
+# un identifiant dont tout l'intérêt est de porter du sens ne doit pas mentir en
+# silence.
+TYPES_JOURNAL="main white aven musc"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --peek)       PEEK=1;      shift ;;
+    --type)       TYPE="$2";   shift 2 ;;
+    --version-de) TETE="$2";   shift 2 ;;
+    --*)          av_die "option inconnue : $1" ;;
+    *)            TITRE="$1";  shift ;;
+  esac
+done
+
+PREFIXE="$(av_unite "$ATELIER")"; av_exige "$PREFIXE" "le préfixe d'unité" "$ATELIER" >/dev/null
+QUEUE="$(av_queue "$ATELIER")";   av_exige "$QUEUE"   "la queue descriptive" "$ATELIER" >/dev/null
+PORTAIL="$(av_portail "$ATELIER")"
+COMPO="$(av_compositions "$ATELIER")"
+REGISTRE="$AV_STATE/$ATELIER-unites.txt"
+
+# Une nouvelle version d'une entrée existante : la tête est reprise telle quelle,
+# seul le v change, et AUCUN numéro n'est consommé.
+if [ -n "$TETE" ]; then
+  case "$QUEUE" in
+    *'{ts}'*) : ;;
+    *) av_die "« $ATELIER » n'a pas d'horodatage dans sa queue — --version-de n'y a pas de sens." ;;
+  esac
+  # la tête est ramenée en minuscules comme le reste : une version de
+  # jr-001.Main.… doit retomber sur jr-001.main.…, jamais à côté.
+  TETE="$(printf '%s' "$TETE" | tr '[:upper:]' '[:lower:]')"
+  case "$TETE" in
+    "$PREFIXE-"[0-9][0-9][0-9]*) : ;;
+    *) av_die "tête attendue de la forme $PREFIXE-NNN.… — reçu « $TETE »" ;;
+  esac
+  # ICI, et seulement ici, c'est le `v` qui porte l'unicité : la tête est
+  # partagée par construction. Deux versions dans la même seconde porteraient le
+  # nom identique — l'écrasement que la règle « garder la sortante » interdit.
+  # (Pour une entrée neuve, le numéro suffit : quatre entrées peuvent partager
+  # une seconde sans se gêner.)
+  MARQUE="$(av_seconde_distincte "$ATELIER" version)"
+  printf '%s.v%s\n' "$TETE" "$(date -u +%y%m%d%H%M%S)"
+  date -u +%Y%m%d%H%M%S > "$MARQUE"
+  exit 0
+fi
+
+# Le gabarit dit ce qu'il attend ; on ne substitue pas un champ vide en silence
+# — un identifiant à trou est pire qu'un refus. --peek n'imprime que le numéro,
+# il n'a donc besoin d'aucun champ de queue.
+if [ "$PEEK" -eq 0 ]; then
+  case "$QUEUE" in *'{type}'*)
+    [ -n "$TYPE" ] || av_die "la queue de « $ATELIER » attend --type (journal : $TYPES_JOURNAL)"
+    t="$(av_slug "$TYPE")"
+    case " $TYPES_JOURNAL " in
+      *" $t "*) : ;;
+      *) printf '\033[33mavertissement:\033[0m type « %s » hors de la série connue (%s) — écrit tel quel.\n' "$t" "$TYPES_JOURNAL" >&2 ;;
+    esac ;;
+  esac
+  case "$QUEUE" in *'{sujet}'*) [ -n "$TITRE" ] || av_die "il faut un sujet : atelier-claim-unit $ATELIER --type <T> \"<Sujet>\"" ;; esac
+  case "$QUEUE" in *'{slug}'*)  [ -n "$TITRE" ] || av_die "il faut un titre : atelier-claim-unit $ATELIER \"<Titre>\"" ;; esac
+fi
+
+maximum() {                       # le plus haut NNN vu, toutes sources confondues
+  local n=0 v
+  if [ "$PORTAIL" != '-' ] && [ "$PORTAIL" != '?' ]; then
+    # Le tiret final n'est PAS exigé après le numéro : la voie 1 crée des titres
+    # nus (`ep-009`, sans slug), et un motif `ep-(\d+)-` les manquerait — on
+    # rendrait ep-009 une seconde fois. C'est le doublon que le verrou empêche.
+    v="$(curl -sk --max-time 20 "$PORTAIL/api/compositions" 2>/dev/null | python3 -c '
+import json, re, sys
+p = sys.argv[1]; n = 0
+for c in json.load(sys.stdin):
+    m = re.match(r"%s-(\d+)" % re.escape(p), c.get("slug", ""))
+    if m: n = max(n, int(m.group(1)))
+print(n)' "$PREFIXE" 2>/dev/null)"
+    case "${v:-}" in ''|*[!0-9]*) av_die "portail $PORTAIL injoignable — rien réclamé plutôt qu'un numéro deviné." ;; esac
+    [ "$v" -gt "$n" ] && n="$v"
+  fi
+  if [ -d "$COMPO" ]; then
+    v="$(find "$COMPO" -maxdepth 1 -mindepth 1 -name "$PREFIXE-[0-9]*" -printf '%f\n' 2>/dev/null \
+         | sed -n "s/^$PREFIXE-\([0-9]\{1,\}\).*/\1/p" | sort -n | tail -1)"
+    [ -n "${v:-}" ] && [ "$v" -gt "$n" ] && n="$v"
+  fi
+  if [ -s "$REGISTRE" ]; then
+    v="$(sed -n "s/^$PREFIXE-\([0-9]\{1,\}\).*/\1/p" "$REGISTRE" | sort -n | tail -1)"
+    [ -n "${v:-}" ] && [ "$v" -gt "$n" ] && n="$v"
+  fi
+  printf '%s\n' "$n"
+}
+
+batir() {                         # <numéro> -> l'identifiant complet
+  local nnn="$1" q="$QUEUE"
+  # AUCUNE MAJUSCULE dans l'identifiant (règle de Jerry, 2026-08-05) : chaque
+  # segment substitué passe par la même normalisation — minuscules, tirets, sans
+  # accent ni ponctuation. Un identifiant est un nom de fichier ; il doit
+  # survivre à un système insensible à la casse sans que deux entrées se
+  # confondent. Le gabarit lui-même garde ses points de séparation.
+  q="${q//\{type\}/$(av_slug "$TYPE")}"
+  q="${q//\{sujet\}/$(av_slug "$TITRE")}"
+  q="${q//\{ts\}/$(date -u +%y%m%d%H%M%S)}"
+  case "$q" in *'{slug}'*) printf '%s-%s\n' "$PREFIXE" "$nnn" ;;   # le portail slugifie
+                        *) printf '%s-%s%s\n' "$PREFIXE" "$nnn" "$q" ;; esac
+}
+
+# --peek ne prend PAS le verrou : il ne fait que lire, et le prendre le
+# disputerait au crochet episodes de la voie 1, qui tourne en ce moment.
+if [ "$PEEK" -eq 1 ]; then
+  printf '%s-%03d\n' "$PREFIXE" "$(( $(maximum) + 1 ))"
+  exit 0
+fi
+
+# Verrou par mkdir, au chemin EXACT qu'emploie la chaîne episodes de la voie 1
+# ($AV_STATE/<atelier>-numero.lock). Un flock sur un fichier et un mkdir sur un
+# dossier ne s'excluent pas : deux allocateurs réclameraient le même numéro. Le
+# verrou ne vaut que si tout le monde prend le même.
+LOCK="$(av_verrou "$ATELIER")"; i=0
+mkdir -p "$AV_STATE"
+while ! mkdir "$LOCK" 2>/dev/null; do
+  i=$((i+1)); [ "$i" -gt 60 ] && av_die "verrou de numérotation de « $ATELIER » tenu depuis 60 s — une autre veille réclame en ce moment. Rien réclamé."
+  sleep 1
+done
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+
+NNN="$(printf '%03d' "$(( $(maximum) + 1 ))")"
+ID="$(batir "$NNN")"
+
+# Le registre est écrit AVANT toute création : si le portail refuse ensuite, on
+# aura brûlé un numéro — c'est réversible à la main. L'inverse ne l'est pas :
+# deux entrées sous le même numéro se recouvrent en silence.
+printf '%s\t%s\t%s\n' "$ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${TITRE:-}" >> "$REGISTRE"
+
+if [ "$PORTAIL" != '-' ] && [ "$PORTAIL" != '?' ]; then
+  PIXEL_RECORDER_URL="$PORTAIL" "$AV_EP" open "$PREFIXE-$NNN $TITRE"
+else
+  # Aucun portail : l'identifiant est réclamé et tracé, rien n'est créé sur un
+  # service qui n'existe pas. C'est à l'action de l'atelier d'ouvrir le contenant.
+  printf '%s\n' "$ID"
+fi

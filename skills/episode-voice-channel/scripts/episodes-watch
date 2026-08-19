@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# episodes-watch — surveille l'atelier `episodes` sans jamais réveiller de modèle.
+#
+# Coût en tokens : ZÉRO. C'est du bash. Il ne parle à aucun modèle.
+# Il détecte un dépôt de Jerry dans ~/Recordings-episodes/, l'écrit dans un
+# journal, et appelle `episodes-on-drop`. Ce que le crochet fait est écrit là.
+#
+#   démarrer  : episodes-watch &        (ou : nohup episodes-watch &)
+#   suivre    : tail -f ~/.local/state/episode-voice/episodes-watch.log
+#   état      : episodes-watch --status
+#   arrêter   : episodes-watch --stop
+#   à blanc   : episodes-watch --once   (un seul tour, puis sort)
+#   amorcer   : episodes-watch --prime  (pose le repère sans rien déclencher)
+#
+# Repère d'état PROPRE à cette veille. Sans ça, elle partagerait
+# watch-episodes.sha avec une veille de session : la première qui interroge
+# consomme le changement, l'autre voit « unchanged ». C'est exactement ce qui a
+# avalé un dépôt de Jerry le 2026-08-04 à 22h24 sur l'atelier jamai.
+set -uo pipefail
+
+ED="$HOME/.agents/skills/episode-voice-channel/scripts"
+EP="$ED/episode"
+HOOK="$ED/episodes-on-drop"
+ATELIER=episodes
+DEPOTS="$HOME/Recordings-$ATELIER"
+
+export PIXEL_RECORDER_URL="${PIXEL_RECORDER_URL:-https://localhost:8778}"
+export EPISODE_STATE_DIR="$HOME/.local/state/episode-voice/watch-$ATELIER"
+
+STATE="$HOME/.local/state/episode-voice"
+LOG="$STATE/episodes-watch.log"
+PIDFILE="$STATE/episodes-watch.pid"
+LEDGER="$STATE/episodes-mine.txt"        # ce que l'atelier produit lui-même, à ignorer
+MIN=60; MAX=300                          # bornes de la cadence, en secondes
+
+mkdir -p "$STATE" "$EPISODE_STATE_DIR"; touch "$LOG" "$LEDGER"
+
+dire() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+
+pose() {                                  # attendre qu'un dépôt ait fini d'arriver
+  # `episode watch` ne signale un fichier qu'UNE fois : une fois le repère
+  # réécrit, il ne repassera plus. Traiter un fichier encore en cours d'écriture
+  # le perdrait pour de bon. On attend donc que sa taille se stabilise.
+  local f="$1" a b i=0
+  a=$(stat -c%s "$f" 2>/dev/null || echo 0)
+  while [ "$i" -lt 24 ]; do               # 24 × 5 s = 2 min au plus
+    sleep 5
+    b=$(stat -c%s "$f" 2>/dev/null || echo 0)
+    [ "$b" = "$a" ] && [ "$b" != 0 ] && return 0
+    a="$b"; i=$((i+1))
+  done
+  dire "  ATTENTION : $f grossissait encore après 2 min — traité tel quel"
+}
+
+tour() {                                  # un tour de veille : renvoie les dépôts neufs
+  local out
+  out="$("$EP" watch "$ATELIER" 2>&1)" || { dire "ERREUR: episode watch a échoué"; return 0; }
+  case "$out" in
+    unchanged*) return 0 ;;
+  esac
+  printf '%s\n' "$out" \
+    | sed -n "s|^  new $DEPOTS/|$DEPOTS/|p" \
+    | { grep -v -F -f "$LEDGER" || true; }
+}
+
+case "${1:-}" in
+  --stop)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      p="$(cat "$PIDFILE")"; kill "$p" && dire "arrêtée (pid $p)"; rm -f "$PIDFILE"
+    else
+      echo "aucune veille episodes en cours"
+    fi
+    exit 0 ;;
+  --status)
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+      echo "vivante — pid $(cat "$PIDFILE")"
+    else
+      echo "arrêtée"
+    fi
+    echo "repère  : $EPISODE_STATE_DIR/watch-$ATELIER.sha $( [ -f "$EPISODE_STATE_DIR/watch-$ATELIER.sha" ] && cat "$EPISODE_STATE_DIR/watch-$ATELIER.sha" || echo '(non amorcé)')"
+    brut="$("$EP" watch "$ATELIER" --interval 2>/dev/null || echo 300)"
+    case "$brut" in ''|*[!0-9]*) brut=300 ;; esac
+    reel="$brut"; [ "$reel" -gt "$MAX" ] && reel=$MAX; [ "$reel" -lt "$MIN" ] && reel=$MIN
+    echo "cadence : $reel s (recul interne $brut s, plafonné à $MAX)"
+    echo "journal : $LOG"
+    exit 0 ;;
+  --prime)
+    # Poser le repère sans rien déclencher : le premier tour d'`episode watch`
+    # liste l'existant en « seen », pas en « new ». Amorcer explicitement évite
+    # de dépendre de cette subtilité.
+    "$EP" watch "$ATELIER" >/dev/null 2>&1
+    "$EP" watch "$ATELIER" >/dev/null 2>&1
+    dire "amorcée — repère $(cat "$EPISODE_STATE_DIR/watch-$ATELIER.sha" 2>/dev/null || echo '?'), $(find "$DEPOTS" -maxdepth 1 -type f 2>/dev/null | wc -l) fichiers déjà connus"
+    exit 0 ;;
+esac
+
+[ -x "$EP" ]   || { echo "introuvable : $EP" >&2; exit 1; }
+[ -d "$DEPOTS" ] || { echo "introuvable : $DEPOTS" >&2; exit 1; }
+
+if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  echo "déjà en cours (pid $(cat "$PIDFILE")) — episodes-watch --stop pour l'arrêter" >&2
+  exit 1
+fi
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+
+once="${1:-}"
+[ "$once" = "--once" ] || dire "veille episodes démarrée (pid $$) — crochet : $([ -x "$HOOK" ] && echo "$HOOK" || echo 'AUCUN')"
+
+while :; do
+  tour | while IFS= read -r f; do
+    [ -n "$f" ] && [ -f "$f" ] || continue
+    pose "$f"
+    dire "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
+    if [ -x "$HOOK" ]; then
+      if "$HOOK" "$f" >>"$LOG" 2>&1; then dire "  crochet OK"; else dire "  crochet en échec (code $?)"; fi
+    fi
+  done
+
+  [ "$once" = "--once" ] && exit 0
+
+  d="$("$EP" watch "$ATELIER" --interval 2>/dev/null || echo 300)"
+  case "$d" in ''|*[!0-9]*) d=300 ;; esac
+  [ "$d" -gt "$MAX" ] && d=$MAX
+  [ "$d" -lt "$MIN" ] && d=$MIN
+  sleep "$d"
+done

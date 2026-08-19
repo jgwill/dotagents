@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# atelier-post-text <atelier> <slug> <fichier> [--lang fr] [--label "..."] [--source CLIP]
+#
+# Dépose une section texte sur le portail d'un atelier SANS qu'elle en écrase
+# une autre.
+#
+# Le défaut, trouvé par la voie 1 le 2026-08-05 à 07h25 en relisant l'épisode
+# produit : le portail nomme lui-même chaque section
+#     transcription_<AAAAMMJJHHMMSS>_FR.txt
+# — granularité SECONDE, et le client n'a aucune prise sur ce nom (il n'envoie
+# que le texte, la langue, le label et le clip source). Deux dépôts dans la même
+# seconde portent donc le même nom : le second écrase le premier sur disque,
+# avec un 200 et pas un mot. Sur ep-009, la transcription (265 o) avait disparu,
+# remplacée par les reliés (621 o) ; elle ne survivait que dans le champ
+# `content` de composition.json.
+#
+# La correction de la voie 1 est un `sleep 2` entre deux dépôts. Ici la garde
+# est déterministe plutôt qu'estimée : on ATTEND que la seconde courante ait
+# dépassé celle du dernier dépôt réussi, quel que soit le nombre de sections et
+# quelle que soit la vitesse du portail. Un `sleep` fixe tient pour deux
+# sections ; il retombe dans le trou à la troisième, ou si le portail répond
+# plus vite qu'on ne l'a supposé.
+#
+# Hypothèse, nommée : le portail et nous partageons l'horloge. Vrai tant qu'il
+# répond sur localhost — ce qui est le cas des deux portails vivants (8768, 8778).
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/atelier-veille-lib.sh"
+
+ATELIER="${1:?usage: atelier-post-text <atelier> <slug> <fichier> [--lang fr] [--label ...] [--source CLIP]}"; shift
+SLUG="${1:?il faut un slug}"; shift
+FICHIER="${1:?il faut un fichier}"; shift
+LANG=fr; LABEL=""; SOURCE=""; DRY=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --lang)    LANG="$2";   shift 2 ;;
+    --label)   LABEL="$2";  shift 2 ;;
+    --source)  SOURCE="$2"; shift 2 ;;
+    --dry-run) DRY=1;       shift ;;
+    *) av_die "option inconnue : $1" ;;
+  esac
+done
+[ -s "$FICHIER" ] || av_die "fichier vide ou introuvable : $FICHIER"
+
+PORTAIL="$(av_portail "$ATELIER")"; av_exige "$PORTAIL" "le portail" "$ATELIER" >/dev/null
+
+# La garde vit dans la bibliothèque : la même seconde-à-soi sert aux sections
+# texte ET aux identifiants horodatés, qui souffrent du même travers. Le portail
+# horodate en UTC (transcription_20260804163441 pour un fichier de 12h34 local).
+MARQUE="$(av_seconde_distincte "$ATELIER" section)"
+
+if [ "$DRY" -eq 1 ]; then
+  echo "  À DÉPOSER (à blanc) : $SLUG ← $FICHIER, seconde $(date -u +%Y%m%d%H%M%S)"
+else
+  PIXEL_RECORDER_URL="$PORTAIL" "$AV_EP" text "$SLUG" \
+    --file "$FICHIER" --lang "$LANG" \
+    ${LABEL:+--label "$LABEL"} ${SOURCE:+--source "$SOURCE"} || av_die "dépôt refusé par $PORTAIL"
+fi
+
+# On note la seconde de FIN, pas de début : si le dépôt a chevauché deux
+# secondes, on ignore laquelle le portail a inscrite — retenir la plus tardive
+# garantit que la suivante tombera strictement après.
+date -u +%Y%m%d%H%M%S > "$MARQUE"

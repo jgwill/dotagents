@@ -1,0 +1,39 @@
+{
+  "title": "Rivière Richelieu Field Capture — 2026-07-31",
+  "slug": "riviere-richelieu-field-capture-2026-07-31",
+  "created": "2026-07-31T18:27:03.988Z",
+  "updated": "2026-07-31T18:27:05.206Z",
+  "chords": [],
+  "sections": [],
+  "rhythm": "",
+  "bpm": null,
+  "bpmDetected": false,
+  "key": "",
+  "capo": "",
+  "notes": "",
+  "clips": [
+    {
+      "filename": "20260731142235_land-capture.m4a",
+      "label": "One-minute field recording beside the Rivière Richelieu",
+      "addedAt": "2026-07-31T18:27:04.581Z"
+    }
+  ],
+  "images": [
+    {
+      "filename": "img_20260731182704.jpg",
+      "label": "Rear-camera field view beside the Rivière Richelieu",
+      "addedAt": "2026-07-31T18:27:04.686Z"
+    }
+  ],
+  "texts": [
+    {
+      "filename": "transcription_20260731142235_land-capture_EN.txt",
+      "lang": "en",
+      "label": "English translation",
+      "source": "20260731142235_land-capture.m4a",
+      "content": " Jeremy, I saw a glyph that we are actually on the record. So I'm on the side of the... in French it's Rivière Richelieu. So I have no idea if you're currently recording right now because I see things on the screen. So I'm going to repeat again. I'm on the side of the river here. And you're probably recording here. What I would want after that is a transcription, a new composition, even though we are going to call that differently in the future. And I would want a picture also of that new composition. We will try to create a new composition. I don't know if you are going to be able to understand all that, but right now I think you are recording. So, Jerry is working on deploying and reviewing a PR that hopefully we will also bring in here. It's going to give us the capability of sharing and synchronizing.",
+      "addedAt": "2026-07-31T18:27:05.206Z",
+      "generatedBy": "composition-recorder"
+    }
+  ]
+}

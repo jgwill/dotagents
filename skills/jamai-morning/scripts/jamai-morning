@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# jamai-morning — start a music session with Jerry without writing a prompt.
+#
+# Jerry drops audio or MIDI into the Pixel Recorder, then runs this. It finds the
+# recorder that serves the `jamai` atelier, checks the channel, reports what is
+# new since last time, claims the next opus number, and launches the session with
+# a brief already written.
+#
+# Part of the jamai-morning skill. See ../SKILL.md.
+set -euo pipefail
+
+STATE_DIR="${EPISODE_STATE_DIR:-$HOME/.local/state/episode-voice}"
+EPISODE="${EPISODE_SCRIPT:-$HOME/.agents/skills/episode-voice-channel/scripts/episode}"
+ATELIER=jamai
+PORTS="${JAMAI_RECORDER_PORTS:-8768 8778}"
+CURL=(curl -sk --max-time 15)
+
+DRY=0; TITLE=""; SINCE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY=1; shift ;;
+    --title)   TITLE="$2"; shift 2 ;;
+    --since)   SINCE="$2"; shift 2 ;;
+    -h|--help)
+      cat >&2 <<'U'
+jamai-morning — open a music session in the jamai atelier
+
+  jamai-morning                    find the atelier, report what is new, launch
+  jamai-morning --title "Nom"      name the piece yourself instead of op-NNN
+  jamai-morning --since 2026-08-01 only drops from that date onward
+  jamai-morning --dry-run          print the brief and stop; launch nothing
+
+"Unread" means not yet attached to any composition, not "arrived recently".
+A drop stays listed until it is used, however old. Reading consumes nothing.
+
+env: JAMAI_RECORDER_PORTS (default "8768 8778"), EPISODE_STATE_DIR
+U
+      exit 0 ;;
+    *) printf 'unknown option: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
+
+say()  { printf '\033[36m%s\033[0m\n' "$*" >&2; }
+ok()   { printf '\033[32m✓\033[0m %s\n' "$*" >&2; }
+warn() { printf '\033[33m!\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+workspace_of() {   # which atelier is this port serving right now?
+  "${CURL[@]}" "https://localhost:$1/" 2>/dev/null \
+    | grep -o 'data-current-workspace="[^"]*"' | head -1 | sed 's/.*="//; s/"//' || true
+}
+
+# ── 1. The right atelier, guaranteed ────────────────────────────────────────
+# Two recorders run side by side. Getting this wrong does not fail loudly — it
+# quietly writes the music into the episodes atelier, where nobody looks for it.
+# So probe every port and pick the one actually serving jamai, rather than
+# trusting a default.
+PORT=""
+for p in $PORTS; do
+  w="$(workspace_of "$p")"
+  [ -n "$w" ] && say "port $p sert l'atelier « ${w:-main} »"
+  if [ "$w" = "$ATELIER" ]; then PORT="$p"; fi
+done
+
+if [ -z "$PORT" ]; then
+  # No recorder is on jamai. Switch the first one that answers and is not
+  # serving episodes — never steal the episodes recorder out from under it.
+  for p in $PORTS; do
+    w="$(workspace_of "$p")"
+    [ -n "$w" ] || continue
+    [ "$w" = "episodes" ] && continue
+    warn "aucun recorder sur « $ATELIER » — je bascule le port $p"
+    "${CURL[@]}" -X POST "https://localhost:$p/api/workspace/switch" \
+      -H 'Content-Type: application/json' -d "{\"workspace\":\"$ATELIER\"}" >/dev/null || true
+    sleep 4
+    [ "$(workspace_of "$p")" = "$ATELIER" ] && PORT="$p" && break
+  done
+fi
+[ -n "$PORT" ] || die "aucun recorder ne sert « $ATELIER » et aucun n'a pu être basculé.
+  démarre-le :  cd <gmtermux>/web && setsid env WORKSPACE=$ATELIER node pixel-recorder.js > /tmp/pr-jamai.log 2>&1 &"
+
+export PIXEL_RECORDER_URL="https://localhost:$PORT"
+ok "atelier « $ATELIER » servi par le port $PORT — vérifié, pas supposé"
+
+# ── 2. The channel works ────────────────────────────────────────────────────
+"$EPISODE" preflight >/dev/null 2>&1 || { "$EPISODE" preflight || true; die "preflight a échoué"; }
+ok "canal prêt (portail, clé Groq, ffmpeg)"
+
+REC="$HOME/Recordings-$ATELIER"
+mkdir -p "$STATE_DIR" "$REC"
+
+# ── 3. What is still unread ─────────────────────────────────────────────────
+# Not "what arrived since midnight", and not "what arrived since the last
+# launch". See scripts/jamai-unread.py for why a timestamp marker asks the
+# wrong question, and what replaces it.
+NEW="$(python3 "$(dirname "$0")/jamai-unread.py" \
+        "$REC" "$STATE_DIR/spoken-$ATELIER.txt" "$PIXEL_RECORDER_URL" "$SINCE")"
+
+N_MIDI=$(printf '%s\n' "$NEW" | grep -ciE '\.midi?$' || true)
+N_AUD=$(printf '%s\n' "$NEW" | grep -cvE '\.midi?$|^$' || true)
+
+# ── 4. The next opus ────────────────────────────────────────────────────────
+# Compositions are numbered like episodes so they sort by when they happened and
+# can be said out loud: "opus trois". Jerry never has to invent a name to start.
+NEXT="$("${CURL[@]}" "$PIXEL_RECORDER_URL/api/compositions" | python3 -c '
+import json, re, sys
+n = 0
+for c in json.load(sys.stdin):
+    m = re.match(r"op-(\d+)-", c.get("slug", ""))
+    if m: n = max(n, int(m.group(1)))
+print("%03d" % (n + 1))' 2>/dev/null || echo "001")"
+
+[ -n "$TITLE" ] || TITLE="Opus $NEXT"
+SLUG_HINT="op-$NEXT"
+
+# ── 5. The brief ────────────────────────────────────────────────────────────
+BRIEF="$STATE_DIR/jamai-morning-prompt.md"
+{
+  cat <<EOF
+Tu es 🎸 JamAI, la session musicale de Jerry. Utilise la compétence \`jamai-morning\`
+(\`~/.agents/skills/jamai-morning/SKILL.md\`) — elle porte la méthode, les pièges
+mesurés et les règles. Lis-la avant d'agir, ainsi que
+\`references/lecons-260802.md\` qui archive la session qui l'a produite.
+
+ÉTAT VÉRIFIÉ À L'INSTANT PAR LE LANCEUR — ne le re-vérifie pas :
+- atelier \`$ATELIER\` servi par le port $PORT ; PIXEL_RECORDER_URL est déjà exporté
+- preflight passé : portail, clé Groq non guillemetée, ffmpeg
+- prochain numéro libre : **$SLUG_HINT**
+
+EN ATTENTE — déposé par Jerry, pas encore rattaché à une composition :
+EOF
+  if [ -z "$NEW" ]; then
+    echo "  (rien en attente : tout ce qu'il a déposé est déjà rattaché)"
+  else
+    printf '%s\n' "$NEW" | while read -r f; do
+      [ -n "$f" ] || continue
+      printf '  %s  (%s octets)\n' "$(basename "$f")" "$(stat -c%s "$f")"
+    done
+    printf '  → %s fichier(s) MIDI, %s audio\n' "$N_MIDI" "$N_AUD"
+  fi
+  cat <<EOF
+
+TON PREMIER GESTE :
+1. Regarde ces fichiers avant de parler. Les MIDI se lisent note à note ; l'audio
+   se mesure. Ne devine pas ce que Jerry a joué — établis-le.
+2. Dis-lui ce que tu as trouvé, en français, en nommant ce que tu entends avant
+   de proposer quoi que ce soit.
+3. Crée la composition \`$SLUG_HINT\` avec un titre qui décrit la pièce, une fois
+   que tu sais ce qu'elle est :
+     $EPISODE opus "<titre que tu proposes>"    # numérote tout seul
+   ou, si Jerry a déjà nommé la pièce, garde son nom.
+
+N'envoie aucun audio tant que Jerry ne le demande pas. Ne publie rien sans son
+signal. Committe avant chaque réécriture.
+EOF
+} > "$BRIEF"
+
+# ── 6. Go ───────────────────────────────────────────────────────────────────
+# The marker is NOT advanced here. A --dry-run must consume no state: it is the
+# command you run to ask "what is waiting?", and if asking the question erased
+# the answer, the next real launch would report nothing new and the session
+# would start blind to what Jerry played overnight. That is exactly what
+# happened on 2026-08-03 — see ../references/lecons-260802.md.
+# The marker moves only when a real session is about to open and actually see
+# these files. It is set just before exec, below.
+printf '\n' >&2
+if [ -z "$NEW" ]; then warn "rien en attente dans $REC"
+else ok "$N_MIDI MIDI et $N_AUD audio en attente"; fi
+ok "prochain numéro : $SLUG_HINT"
+ok "brief écrit dans $BRIEF"
+
+if [ "$DRY" -eq 1 ]; then
+  printf '\n──────── brief ────────\n' >&2
+  cat "$BRIEF"
+  exit 0
+fi
+
+command -v claude >/dev/null || die "la commande \`claude\` est introuvable dans le PATH"
+say "ouverture de la session…"
+exec claude "$(cat "$BRIEF")"

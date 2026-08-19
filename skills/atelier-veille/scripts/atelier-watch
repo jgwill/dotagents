@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# atelier-watch <atelier> — surveille un atelier sans jamais réveiller de modèle.
+#
+# Généralisation de jamai-watch. Coût en tokens : ZÉRO. C'est du bash. Il ne
+# parle à aucun modèle. Il détecte un dépôt, l'écrit dans un journal, et appelle
+# le crochet. Ce que le crochet fait est décidé par la table des ateliers.
+#
+#   démarrer  : atelier-watch episodes &
+#   plusieurs : atelier-watch jamai --as matin &   atelier-watch jamai --as soir &
+#   suivre    : atelier-watch episodes --status
+#   arrêter   : atelier-watch episodes --stop
+#   à blanc   : atelier-watch episodes --once
+#   la table  : atelier-watch --list
+#
+# CHAQUE veille a son propre dossier d'état — par atelier ET par instance. Deux
+# veilles ne peuvent donc pas se voler une notification, et deux veilles sur le
+# même couple (atelier, instance) sont refusées au démarrage.
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/atelier-veille-lib.sh"
+
+ATELIER=""; INSTANCE="defaut"; ACTION="boucle"; HOOK=""
+MIN="${ATELIER_VEILLE_MIN:-60}"; MAX="${ATELIER_VEILLE_MAX:-600}"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --as)      INSTANCE="${2:?--as attend un nom}"; shift 2 ;;
+    --hook)    HOOK="${2:?--hook attend un chemin}"; shift 2 ;;
+    --once)    ACTION=once;   shift ;;
+    --prime)   ACTION=prime;  shift ;;
+    --stop)    ACTION=stop;   shift ;;
+    --status)  ACTION=status; shift ;;
+    --list)    ACTION=list;   shift ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    --*)       av_die "option inconnue : $1" ;;
+    *)         ATELIER="$1"; shift ;;
+  esac
+done
+
+if [ "$ACTION" = list ]; then
+  printf '%-9s %-6s %-8s %-9s %-11s %-26s %s\n' atelier unité mode sortie destination portail queue
+  awk '$1 !~ /^#/ && NF>=7 {printf "%-9s %-6s %-8s %-9s %-11s %-26s %s\n", $1,$2,$4,$6,$5,$3,$7}' "$AV_CONF"
+  printf '\ntable : %s   (« * » = proposé, en attente de Jerry)\n' "$AV_CONF"
+  exit 0
+fi
+
+[ -n "$ATELIER" ] || av_die "usage : atelier-watch <atelier> [--as <instance>] [--once|--stop|--status]"
+av_champ "$ATELIER" 1 >/dev/null                      # existe dans la table, ou on s'arrête
+
+REC="$(av_recordings "$ATELIER")"
+DIR="$(av_veille_dir "$ATELIER" "$INSTANCE")"
+LOG="$DIR/veille.log"; PIDFILE="$DIR/veille.pid"; LEDGER="$DIR/mine.txt"
+[ -n "$HOOK" ] || HOOK="$AV_HERE/atelier-on-drop"
+
+# Le repère d'état de `episode watch` vit ICI, dans le dossier de CETTE veille.
+# Jamais dans $AV_STATE à la racine : d'autres sessions y écrivent déjà leur
+# propre watch-<atelier>.sha, et c'est exactement ce partage qui a avalé le
+# dépôt de 22h24 le 2026-08-04.
+export EPISODE_STATE_DIR="$DIR"
+mkdir -p "$DIR"; touch "$LOG" "$LEDGER"
+
+# Le portail de CET atelier, pour que le crochet et son action n'aient pas à le
+# redécouvrir. « - » = aucun portail : on n'exporte rien plutôt que le défaut
+# 8768, qui pointerait sur jamai depuis n'importe quel atelier.
+P="$(av_portail "$ATELIER")"
+[ "$P" = '-' ] || [ "$P" = '?' ] || export PIXEL_RECORDER_URL="$P"
+
+say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
+vivante() { [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+
+pose() {                          # attendre qu'un dépôt ait fini d'arriver
+  # Trouvé par la voie 1 en lisant cmd_watch : `episode watch` ne signale un
+  # fichier qu'UNE fois. Le repère réécrit, il ne repassera plus — traiter un
+  # fichier encore en cours d'écriture le perd DÉFINITIVEMENT. On attend donc
+  # que sa taille se stabilise. jamai-watch n'avait pas cette garde.
+  local f="$1" a b i=0
+  a=$(stat -c%s "$f" 2>/dev/null || echo 0)
+  while [ "$i" -lt 24 ]; do       # 24 × 5 s = 2 min au plus
+    sleep 5
+    b=$(stat -c%s "$f" 2>/dev/null || echo 0)
+    [ "$b" = "$a" ] && [ "$b" != 0 ] && return 0
+    a="$b"; i=$((i+1))
+  done
+  say "  ATTENTION : $f grossissait encore après 2 min — traité tel quel"
+}
+
+case "$ACTION" in
+  stop)
+    # Lire le pid AVANT de tuer : le piège EXIT de la veille efface le fichier
+    # aussitôt, et un second `cat` imprimait « arrêtée (pid ) ».
+    if vivante; then p="$(cat "$PIDFILE")"; kill "$p" && say "arrêtée (pid $p)"; rm -f "$PIDFILE"
+    else echo "aucune veille $ATELIER/$INSTANCE en cours"; fi
+    exit 0 ;;
+  status)
+    if vivante; then echo "vivante — $ATELIER/$INSTANCE, pid $(cat "$PIDFILE")"
+    else echo "arrêtée — $ATELIER/$INSTANCE"; fi
+    echo "état   : $DIR"
+    echo "repère : $DIR/watch-$ATELIER.sha $( [ -f "$DIR/watch-$ATELIER.sha" ] && cat "$DIR/watch-$ATELIER.sha" || echo '(non amorcé)')"
+    echo "journal: $LOG"
+    exit 0 ;;
+  prime)
+    # Poser le repère sans rien déclencher : le premier tour d'`episode watch`
+    # liste l'existant en « seen », pas en « new ». Amorcer explicitement évite
+    # de dépendre de cette subtilité. (Absorbé de la voie 1.)
+    "$AV_EP" watch "$ATELIER" >/dev/null 2>&1
+    "$AV_EP" watch "$ATELIER" >/dev/null 2>&1
+    say "amorcée — $ATELIER/$INSTANCE, repère $(cat "$DIR/watch-$ATELIER.sha" 2>/dev/null || echo '?'), $(find "$REC" -maxdepth 1 -type f 2>/dev/null | wc -l) fichiers déjà connus"
+    exit 0 ;;
+esac
+
+[ -x "$AV_EP" ] || av_die "pilote de portail introuvable : $AV_EP"
+[ -d "$REC" ]   || av_die "dossier de dépôt introuvable : $REC"
+
+if vivante; then
+  av_die "déjà en cours sur $ATELIER/$INSTANCE (pid $(cat "$PIDFILE")). Pour une seconde veille sur le même atelier, donne-lui un autre nom : --as <autre>."
+fi
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+
+[ "$ACTION" = once ] || say "veille démarrée — $ATELIER/$INSTANCE (pid $$), dépôts : $REC, crochet : $([ -x "$HOOK" ] && echo "$HOOK" || echo aucun)"
+
+while :; do
+  out="$("$AV_EP" watch "$ATELIER" 2>&1)" || out="ERREUR: episode watch a échoué"
+
+  case "$out" in
+    unchanged*) : ;;
+    ERREUR*) say "$out" ;;
+    *)
+      # Uniquement les fichiers neufs du dossier de dépôt de CET atelier — jamais
+      # nos propres rendus (le registre), jamais ceux d'un autre atelier, jamais
+      # les lignes de compositions/ (que `episode watch` émet aussi).
+      printf '%s\n' "$out" \
+        | sed -n "s|^  new ${REC}/|${REC}/|p" \
+        | { grep -v -F -f "$LEDGER" || true; } \
+        | while IFS= read -r f; do
+            [ -n "$f" ] && [ -f "$f" ] || continue
+            pose "$f"
+            say "DÉPÔT  $f  ($(stat -c%s "$f" 2>/dev/null || echo '?') octets)"
+            if [ -x "$HOOK" ]; then
+              "$HOOK" "$ATELIER" "$f" >>"$LOG" 2>&1 \
+                && say "  crochet OK" \
+                || say "  crochet en échec (code $?)"
+            fi
+          done
+      ;;
+  esac
+
+  [ "$ACTION" = once ] && exit 0
+
+  d="$("$AV_EP" watch "$ATELIER" --interval 2>/dev/null || echo 300)"
+  case "$d" in ''|*[!0-9]*) d=300 ;; esac
+  [ "$d" -gt "$MAX" ] && d=$MAX
+  [ "$d" -lt "$MIN" ] && d=$MIN
+  sleep "$d"
+done
