@@ -20,6 +20,9 @@ SSH_PORT=8022
 # « watch-standalone » ; les fichiers sont nommés par atelier (watch-abies.sha)
 # donc il n'y aurait pas de collision, mais l'isolation coûte une ligne.
 export EPISODE_STATE_DIR="$HOME/.local/state/episode-voice/watch-standalone-$WS"
+# Abies treats its remote compositions directory as the incoming tray.  Do not
+# also inspect Recordings-abies: it contains prior material outside this brief.
+export EPISODE_WATCH_DIRS="$HOME/compositions-$WS"
 mkdir -p "$EPISODE_STATE_DIR"
 STATE="$HOME/.local/state/episode-voice"
 LOG="$STATE/$WS-watch.log"
@@ -41,7 +44,9 @@ say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
 case "${1:-}" in
   --stop)
     if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-      kill "$(cat "$PIDFILE")" && say "arrêté (pid $(cat "$PIDFILE"))"; rm -f "$PIDFILE"
+      pid="$(cat "$PIDFILE")"
+      kill "$pid" && say "arrêté (pid $pid)"
+      rm -f "$PIDFILE"
     else
       echo "aucune veille en cours"
     fi
@@ -71,32 +76,17 @@ trap 'rm -f "$PIDFILE"' EXIT
 # laisser le miroir PÉRIMÉ, jamais VIDE : un dossier vidé change l'empreinte et
 # se lit comme « tout a bougé ». Sans --delete, le pire cas est du retard.
 #
-# Source : la paire par DÉFAUT d'abies (~/compositions, ~/Recordings) — son
-# portail sert WORKSPACE="" et c'est là que ses dépôts tombent réellement.
-# ÉCART 5 — ~/downloads, ajouté le 2026-08-14, payé par un vrai dépôt manqué.
-# Jerry a déposé un MIDI le 12 août à 18h43 dans ~/downloads. Ni ~/compositions
-# ni ~/Recordings ne le contenaient : la veille ne pouvait pas le voir, et elle
-# ne s'en est pas plainte — le dépôt était hors périmètre, pas en erreur.
-# C'est là que tombent ses exports (le .mid, un .m4a, un .mp4).
-# Le miroir vise Recordings-<ws> parce que watch_dirs() ne connaît que
-# compositions-<ws> et Recordings-<ws> : tout dépôt à surveiller doit atterrir
-# dans l'un des deux.
+# Source unique : ~/compositions-jamai sur Abies. Cette voie choisit d'en faire
+# le bac entrant ; aucun fichier de ~/Recordings-jamai, ~/downloads ou du
+# stockage Android ne fait partie de cette veille.
+#
+# Le miroir exclut .git. episode watch signale un dépôt git sous forme de
+# commits/worktree, pas de fichiers individuels ; ici il doit passer chaque
+# nouveau fichier au crochet de mesure.
 pull() {
-  local rc=0 d
-  rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
-    "$REMOTE:~/compositions/" "$HOME/compositions-$WS/" >/dev/null 2>&1 || rc=$?
-  # ÉCART 6 — /storage/emulated/0/Recordings, ajouté le 2026-08-14, payé par un
-  # second dépôt manqué (une CONSIGNE VOCALE, pas seulement un fichier).
-  # C'est le VRAI dossier d'enregistrement du téléphone : 64 fichiers, 223 Mo,
-  # là où le ~/Recordings de Termux n'en a que 2 datant de mai. L'appli
-  # d'enregistrement écrit dans le stockage partagé Android, pas dans le bac à
-  # sable de Termux. Chemin ABSOLU obligatoire : ~/storage/shared est un lien
-  # que rsync ne résout pas depuis l'autre bout ("No such file or directory").
-  for d in "~/Recordings" "~/downloads" "/storage/emulated/0/Recordings"; do
-    rsync -a --timeout=45 -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
-      "$REMOTE:$d/" "$HOME/Recordings-$WS/" >/dev/null 2>&1 || rc=$?
-  done
-  return $rc
+  rsync -a --exclude '/.git/' --timeout=45 \
+    -e "ssh -p $SSH_PORT -o BatchMode=yes -o ConnectTimeout=15" \
+    "$REMOTE:~/compositions-jamai/" "$HOME/compositions-$WS/"
 }
 
 once="${1:-}"
@@ -105,7 +95,17 @@ once="${1:-}"
 pull_ko=0
 while :; do
   if pull; then
-    [ "$pull_ko" -gt 0 ] && say "tirage rétabli après $pull_ko échec(s)"
+    # ÉCART 9 — seuil de 10 tours sur l'annonce de rétablissement, 2026-08-17.
+    # Un seul tour manqué est un clignotement du lien, pas une coupure : il
+    # remontait quand même jusqu'à Jerry et diluait les vraies (145, 163, 184,
+    # 251 tours). Le compte reste écrit dans le journal quoi qu'il arrive ;
+    # seule l'ANNONCE est filtrée.
+    if [ "$pull_ko" -ge 10 ]; then
+      say "tirage rétabli après $pull_ko échec(s)"
+    elif [ "$pull_ko" -gt 0 ]; then
+      printf '%s  lien rétabli après %s tour(s) — sous le seuil d annonce\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$pull_ko" >> "$LOG"
+    fi
     pull_ko=0
   else
     pull_ko=$(( pull_ko + 1 ))
