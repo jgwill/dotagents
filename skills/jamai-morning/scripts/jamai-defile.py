@@ -1,1 +1,0 @@
-/home/gmusic/salix/repos/jamai-core/rendu/jamai-defile.py

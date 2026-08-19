@@ -1,1 +1,1 @@
-/home/gmusic/salix/repos/jamai-core/rendu/jamai-tab.py
+/home/gmusic/salix/repos/jamai-core/render/jamai-tab.py

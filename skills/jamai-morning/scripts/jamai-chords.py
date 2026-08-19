@@ -1,1 +1,1 @@
-/home/gmusic/salix/repos/jamai-core/ecoute/jamai-chords.py
+/home/gmusic/salix/repos/jamai-core/listen/jamai-chords.py
