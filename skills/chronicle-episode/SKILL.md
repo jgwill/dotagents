@@ -1,0 +1,128 @@
+---
+name: chronicle-episode
+description: Create, adopt, attach captures to, register, verify, commit, or publish Miadi Chronicle episode vessels on William's Ilex Android/Termux host. Use for mkepisode/passages work, new Episode Recorder episode creation, Chronicle capture/transcript publication, or any request to close an episode through disk, Git, Medicine Wheel, and receipt proofs.
+compatibility: Ilex Android/Termux with passages mkepisode >=0.2.0, Chronicle worktree, Git, and Medicine Wheel on port 8040.
+---
+
+# Chronicle Episode
+
+Use this skill for every write to the Miadi Chronicle. A vessel is not complete merely because its directory exists.
+
+## Authority and paths
+
+Before acting, read completely:
+
+- `/data/data/com.termux/files/srv/miadi/episodes/miadi-chronicle/AGENTS.md`
+- `/data/data/com.termux/files/srv/miadi/episodes/miadi-chronicle/CLAUDE.md`
+- `/data/data/com.termux/files/srv/miadi/episodes/CLAUDE.md`
+
+Ilex paths and endpoints:
+
+```text
+Git root:       /data/data/com.termux/files/srv/miadi/episodes
+Chronicle root: /data/data/com.termux/files/srv/miadi/episodes/miadi-chronicle
+Medicine Wheel: http://127.0.0.1:8040
+Forgewright:    http://127.0.0.1:8031
+```
+
+The retired local bare path is not the active origin. Measure `git remote -v`; do not restore stale pointers from old episode files.
+
+## Tool readiness
+
+`mkepisode` from npm `passages` is the tool of record. Presence is not capability:
+
+```bash
+command -v mkepisode
+mkepisode --help | grep -- --adopt
+npm view passages version
+npm ls -g passages --depth=0
+```
+
+The floor is `passages@0.2.0`; prefer the current published version. On Ilex, install deliberately with:
+
+```bash
+npm install -g passages@<reviewed-version> --prefer-online
+```
+
+Never hand-create an episode directory when `mkepisode` can create it.
+
+## Required birth fields
+
+A new vessel requires all four human-authored inputs:
+
+1. positive episode number;
+2. non-empty title;
+3. non-empty desired result / goal;
+4. one or more ordered provenance references.
+
+Date, slug, series, status, type, root, and Wheel URL are derived. Survey after fetching; never silently replace a colliding number with another.
+
+## Safe preflight
+
+The Chronicle is a shared, main-only worktree. Preserve all unrelated dirty files.
+
+```bash
+root=/data/data/com.termux/files/srv/miadi/episodes
+chronicle="$root/miadi-chronicle"
+git -C "$root" branch --show-current
+git -C "$root" status --short --branch
+git -C "$root" fetch origin main
+git -C "$root" rev-list --left-right --count main...origin/main
+```
+
+Only fast-forward when Git proves it safe. Never stash, reset, clean, force-push, or automatically rebase shared `main`. If local and remote diverge, the index already contains work, or integration requires judgment, refuse and report the exact stage.
+
+## Create and register
+
+Always derive the tool boundary variable from the Chronicle-specific variable:
+
+```bash
+export MIADI_CHRONICLE_ROOT=/data/data/com.termux/files/srv/miadi/episodes/miadi-chronicle
+export MIADI_CHRONICLE_MW_URL=http://127.0.0.1:8040
+export MW_API_URL="$MIADI_CHRONICLE_MW_URL"
+mkepisode \
+  --chronicle-root "$MIADI_CHRONICLE_ROOT" \
+  --register "$MW_API_URL" \
+  -n <number> \
+  -t '<title>' \
+  -g '<desired-result>' \
+  -r 'owner/repo#issue' \
+  -r '<other-provenance>'
+```
+
+Use argv-based process execution in applications; never concatenate browser input into a shell command. `--adopt` is only for one already-existing, manifest-less, unambiguous episode and never for ordinary birth.
+
+## Capture custody
+
+A capture may be copied under `<episode>/captures/<take-stem>/`, but compressed raw media remains device-local and ignored by Chronicle Git. Never force-add `.m4a`, `.mp4`, `.mov`, or `.wav`.
+
+Textual publication may include only named paths produced by the gesture, typically:
+
+- `episode.yaml`;
+- `.mw-registration.json`;
+- `captures/<stem>/capture.json`;
+- `captures/<stem>/transcription.json`;
+- `captures/<stem>/transcription_<stem>_FR.txt`;
+- `captures/<stem>/transcription_<stem>_EN.txt`.
+
+A local copy, Wheel registration, Git commit, and Git push are separate stages. Preserve partial success and recovery paths.
+
+## Git publication
+
+Before staging, fetch again and require a clean index. Stage named textual files only; never `git add .`, `-A`, `commit -a`, or ignored media. Commit directly to `main` with an imperative subject, receipts in the body, `Ref: owner/repo#n`, and a truthful co-author/service trailer required by the Chronicle law. Fetch again before push; if the remote moved, stop rather than rewriting shared history. Push normally and never force.
+
+## Five-stage proof
+
+Report each stage independently:
+
+1. **created** — `episode.yaml` exists;
+2. **committed** — `git log -1 -- <episode-path>` names the intended commit;
+3. **pushed** — `git rev-list --count origin/main..main` is `0` after fetch;
+4. **registered** — `GET /api/nodes/chronicle:<episode-folder>` returns `200`;
+5. **receipt-verified** — `.mw-registration.json` state and URL agree with the live read.
+
+A pending receipt is debt, not success. A local save remains successful if later registration or publication refuses.
+
+## Event-ready application boundary
+
+Episode applications should emit privacy-bounded stage events through an injected sink. Events may carry correlation/idempotency keys, episode number/path, capture filename, relative textual artifact paths, hashes, commit SHA, and stage status. Never put transcript bodies, credentials, audio bytes, or absolute private media paths in an event payload. The event sink must not own the domain transaction; transport failure is its own receipt.
