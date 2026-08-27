@@ -203,3 +203,179 @@ At the snapshot, the Chronicle had pre-existing live JSONL store changes and an 
 - **Verified:** local and remote dotagents `main` both resolve to `8ddfbb96ad0146b5b9fd82d5a2982a4476c672bb`; gmtermux issue 60 links the shipped capability.
 - **Failed or deferred:** no Chronicle, composition, or gmtermux source was changed. Cross-agent workspace memory may still require Honcho rather than filesystem search alone.
 - **Next safe move:** connect Honcho when William wants other agents' workspace memory, then use `ava001` as the first human-reviewed fixture for gmtermux issue 60.
+
+## 2026-08-15 — Honcho relational workspace access
+
+- **Found:** Pi has no built-in MCP client, but Honcho's Streamable HTTP endpoint accepts MCP 2025-06-18 and identifies as `honcho-v3` 1.29.0. The `gmusic-composition` workspace holds six peers and one active `composition-toolchain` session; its current tension is packaging scattered JamAI composition/score/video tooling so William can run it beyond Eury.
+- **Changed:** created and closed `jgwill/dotagents#26`; added `skills/relational-workspace-honcho/` with a credential-safe MCP CLI adapter and pushed dotagents `main` at `650b256`.
+- **Verified:** upstream health is OK; workspace, peer, session, semantic search, and session-context reads succeed. The helper's unknown/mutating tool path fails closed without explicit `--allow-mutation`.
+- **Failed or deferred:** no Honcho memory was created or changed. Honcho testimony about remote files remains relational memory until verified on the owning host/repository.
+- **Next safe move:** use the `gmusic-composition` workspace to coordinate the package name and owning organization, then verify the remembered Eury tool inventory at source before implementation.
+
+## 2026-08-15 — gmtermux endpoint/deprecation fast-forward
+
+- **Found:** fork branch `origin/refactor/cross-importing-modules-260805` had advanced four documentation/specification and Gaia endpoint-script commits beyond the live current branch; none touched portal or workbench runtime paths or overlapped preserved local composition work.
+- **Changed:** fast-forwarded the current home branch `refactor/cross-importing-modules-260805-ep083-rispecs-260815` from `21b60d7` to `8f50940`; no services were restarted and no local composition material was altered.
+- **Verified:** the full service profile and both watchdogs remained running; Ritual, both Pixel Recorders, Clipboard, Workspace, Medicine Wheel, and Forgewright each returned HTTP 200 after the merge.
+- **Failed or deferred:** the current branch is now four commits ahead of its own fork remote branch; it was not pushed because no push was requested.
+- **Next safe move:** continue running normally; push the current branch only when William explicitly asks to publish this fast-forward.
+
+## 2026-08-15 — five fixed composition workspace services
+
+- **Found:** `~/compositions-episodes` was already managed on `:9768`; William clarified the final topology as Aureon `:8768`, Nyro `:9768`, JamAI `:4768`, Synth `:5768`, and Episodes `:3768`. The former workspace menu restarted the process on its current port, so a click could silently replace a fixed service identity. A six-pane full-profile window also exceeds Ilex's mobile tmux geometry and initially prevented Workspace `:8770` from starting.
+- **Changed:** on gmtermux branch `refactor/cross-importing-modules-260805`, opened and expanded fork issue `#61`; updated the uncommitted launcher, watchdog, mode manager, Pixel workspace/navigation modules, compatibility route, tests, setup text, and portal documentation. The original five-pane `portals` window stays bounded while Nyro, JamAI, and Synth use separate windows in the same supervised session. The menu now links to each fixed HTTPS port on the current hostname; it never restarts the current process, and Main/shared is omitted because it has no managed service. Starting Synth created its empty expected composition and recording directories.
+- **Verified:** all 118 Node tests pass. The managed `full` profile and both watchdogs are running. All five `/compositions` pages return HTTP 200 with the correct workspace marker and all five fixed menu destinations. The legacy switch POST returns Synth `:5768` navigation metadata with `restarting:false`. Ritual `:8443`, Clipboard `:8766`, Workspace `:8770`, Medicine Wheel `:8040`, and Forgewright `:8031` are listening; both workbench health checks pass.
+- **Failed or deferred:** the first six-pane startup failed honestly at Workspace `:8770`; the multi-window correction passed. No real-browser click was observable from the shell, though generated links and live pages were verified. The gmtermux changes remain uncommitted; preserved local composition and PDE material remains untouched.
+- **Next safe move:** perform one human menu click between workspaces, capture any further operating limitation under issue `#61`, then stage only the implementation/documentation files and commit with a `[#61]` subject when William asks to publish.
+
+## 2026-08-15 — capture-service consumer UI issue and RISE export
+
+- **Found:** the capture-service backend and first real Episode 320 take are proven, but no browser UI consumes the service; Pixel Recorder/Songbird still own their prototype write path. Workspace Portal owns IPv4 `:8770`, while the bounded capture-service proof uses IPv6 loopback.
+- **Changed:** opened `miadisabelle/gmtermux#62` to make Pixel/Songbird human-facing clients of `@miadi/capture-service`; created `rispecs/capture-service-consumer-ui.spec.md`, upgraded `capture-vocabulary-deprecation.spec.md` from future-service language to the witnessed transition, and indexed the new surface in `rispecs/README.md`.
+- **Verified:** issue #62 reads back open at `https://github.com/miadisabelle/gmtermux/issues/62`; targeted specs pass whitespace/diff checks and cover the RISE desired outcome, API lifecycle, existing consumer roles, port tension, transition law, and acceptance flow.
+- **Failed or deferred:** the three rispec changes remain local and uncommitted because the live home branch carries substantial unrelated tracked work and no commit/push was requested. No implementation or service files changed.
+- **Next safe move:** review the RISE wording, then stage only the three rispec files and commit with `[#62]` when William asks to publish; implementation begins with the server-side `CAPTURE_SERVICE_URL` adapter, not a second recording engine.
+
+## 2026-08-16 — ep083 Movement Studio local UI witnessed
+
+- **Found:** the ep083 packages were developed from a separate `/a/...` worktree, but the prototype UI is also present and running directly on Ilex from `~/gmtermux-ep083` as `node web/movement-studio.mjs`. That worktree is detached at `7251386` with a pre-existing modified `package-lock.json`.
+- **Changed:** no runtime or source was changed; this entry records the witnessed boundary only.
+- **Verified:** `http://127.0.0.1:8790/`, `/api/status`, `/api/takes`, and the Socket.IO browser client all return HTTP 200. The studio is idle and lists two recorded movement takes.
+- **Failed or deferred:** the process is an unsupervised child of PID 1, not integrated into Ilex's managed gmtermux home checkout, so reboot/process death may remove the UI. Port 8790 is plain HTTP, not HTTPS.
+- **Next safe move:** browse `http://127.0.0.1:8790/` on Ilex now; only if persistence is desired, integrate it into the managed gmtermux service profile without disturbing concurrent home-worktree changes.
+
+## 2026-08-17 — Chronicle main synchronized with Gaia
+
+- **Found:** Ilex `main` was four commits ahead and six behind Gaia; 59 incoming paths overlapped untracked files, all byte-identical to their `origin/main` blobs.
+- **Changed:** activated the tracked non-rewind hooks, preserved the overlapping files through a verified backup, merged Gaia without rebasing or stashing, and pushed merge commit `d85201d66d6e4d6bc146780dbaaa56b8a20ca2bd`.
+- **Verified:** local `main`, `origin/main`, and `ls-remote origin main` agree at `d85201d`; ahead and behind are both zero. Existing non-overlapping untracked work remains untouched.
+- **Failed or deferred:** none for synchronization; untracked Chronicle work still belongs to its existing lanes.
+- **Next safe move:** preserve those untracked lanes and fetch again before the next Chronicle commit or push.
+
+## 2026-08-18 — Chronicle manual-sync collision reconciled
+
+- **Found:** Chronicle `main` was four commits behind Gaia because 101 incoming Episode 333 paths already existed untracked after a manual folder synchronization. Every collision was byte-identical to its incoming blob; Episode 333 held 149 media files, including 96 media paths not targeted by the incoming commits.
+- **Changed:** moved only the 101 proven-identical blockers into `/data/data/com.termux/files/srv/miadi/episodes-sync-preservation/20260818T173054-0400-d85201d-to-776110c`, fast-forwarded to `776110c`, then committed Episode 327's `composition.json` alone as `4ad5af3e46303524784f2b7f415fb76a595646af` and pushed `main`.
+- **Verified:** a before/after manifest proves all 190 protected local files unchanged; the backup retains all 101 original blockers. Local `main`, `origin/main`, and `ls-remote origin main` agree at `4ad5af3`; Episode 333 still has 149 media files, and Episode 327's raw M4A remains present and ignored.
+- **Failed or deferred:** Android denied the first attempted hard link before any blocker moved or Git state changed; the manifest-and-move path then succeeded. Root `.miette/` remains untracked tool residue and was deliberately not committed.
+- **Next safe move:** retain the preservation directory until William confirms the synchronized folder is satisfactory; fetch again before the next Chronicle write and never remove raw media as repository cleanup.
+
+## 2026-08-20 — interrupted Chronicle rebase repaired
+
+- **Found:** `git pull --rebase` replayed Ilex's four local commits onto Gaia `main` at `246023c`, but the shared-tree reference hook correctly refused the final sideways move from the old local tip `f07a1f6` to rebased tip `250575f`, leaving `HEAD` detached with completed rebase metadata.
+- **Changed:** after proving Gaia had not advanced and that `250575f` contained `origin/main`, completed only the interrupted `git rebase --continue` with the hook's explicit one-command `MINO_ALLOW_REWIND=1` escape hatch. No reset, stash, clean, or content edit occurred; both untracked Miette paths remain preserved.
+- **Verified:** `main` is attached at `250575f`, the rebase metadata is gone, divergence is `0 behind / 4 ahead`, and `git push --dry-run origin main` reports the expected fast-forward `246023c..250575f`.
+- **Failed or deferred:** the real push remains deliberately deferred because the first rejected push is a report-and-stop boundary in the shared-tree operating law.
+- **Next safe move:** after acknowledging Gaia's intervening Episode 338/545 commits, recheck `ls-remote`; if it is still `246023c`, an ordinary `git push origin main` can publish the already-reconciled four-commit fast-forward.
+
+## 2026-08-21 — upstream PR 260 merged without crossing the Episode boundary
+
+- **Found:** upstream PR 260's head `16858c7` is contained in `Gerico1007/gmtermux` `main` at `4707e0f`. The live branch's port `3768` surface is a dedicated Chronicle Episode Recorder, not a fifth musical composition workspace. `compositions-nyro` and `compositions-aureon` are authoritative symlinks into Miadi Studio and must not regain tracked children.
+- **Changed:** merged upstream `main` into current gmtermux branch `refactor/cross-importing-modules-260805` as `f934c342fdc88a4af8c8746e42ab71b7d2dcbcd6`; resolved launcher language in favor of Episode semantics while adding Movement Studio `:8776`; kept both composition symlinks unchanged and removed upstream's two attempted `compositions-nyro` index entries. Reconciled npm dependencies and restarted the full portal profile. No push occurred.
+- **Verified:** 167/167 Node tests pass; the focused Episode/portal boundary suite passes 40/40. Live Episode Recorder `:3768` returns 200, withholds `/compositions` (404), and has no composition import control; Nyro composition `ep083` exposes PR 260's import control; Movement `:8776/api/status` returns 200. No tracked Git path exists beneath either composition symlink.
+- **Failed or deferred:** Medicine Wheel `:8040` and Forgewright `:8031` were already down. Restart refused because the Medicine Wheel build predates package files, and the canonical upgrader safely refuses the pre-existing tracked `llms` submodule change. No reset, stash, manual build, or submodule mutation was attempted. The two excluded upstream documents remain preserved at `~/tmp/gmtermux-upstream-merge-20260821T154126/`.
+- **Next safe move:** reconcile the Medicine Wheel `llms` submodule change with its owning lane, then run `~/scripts/mw-fw-upgrade.sh`; push gmtermux commit `f934c34` only if William explicitly requests publication.
+
+## 2026-08-21 — composition transcription fix sent upstream
+
+- **Found:** fork branch `71-composition-transcribe-upstream-ready` is a clean one-commit branch based on upstream `main` at `4707e0f`; the earlier fork PR 72 was closed as the wrong destination.
+- **Changed:** under William's explicit upstream exception, opened `Gerico1007/gmtermux#263` from `miadisabelle:71-composition-transcribe-upstream-ready` to upstream `main`.
+- **Verified:** PR 263 is open and mergeable with commit `4994b8d`, two changed files, and 18 additions; its recorded targeted test result is 15/15 passing.
+- **Failed or deferred:** no checks are currently reported by GitHub; upstream review and merge remain pending.
+- **Next safe move:** await upstream review at `https://github.com/Gerico1007/gmtermux/pull/263` and keep the fork branch available until resolution.
+
+## 2026-08-21 — upstream PR 262 integrated; ep083 worktree retired
+
+- **Found:** upstream PR 262 is merge commit `cdc1fdf` and adds Movement capture/attachment inside compositions. The old detached `~/gmtermux-ep083` service on `:8790` was already dead; managed home already served Movement Studio on `:8776` against the durable `movement-scores` symlink. Upstream still treated `compositions-episodes` as a musical target, conflicting with Ilex's dedicated Chronicle Episode Recorder boundary.
+- **Changed:** merged upstream `main` into current `refactor/cross-importing-modules-260805` as `4883aaa`, then excluded Chronicle vessels from Movement composition targets with regression commit `f545a4c`. Restarted the full managed portal profile and watchdog. Preserved the legacy worktree's one-line lockfile drift and stale runtime receipts under `~/tmp/gmtermux-ep083-retirement-20260821T221139-0400/`, then removed the detached worktree and stale `:8790` PID/log files; the score symlink and captures remain.
+- **Verified:** 170/170 Node tests pass; changed JavaScript syntax and whitespace checks pass. All nine full-profile ports listen. Movement `:8776` returns idle status, 14 standalone takes, and 94 targets across main/Aureon/Nyro/JamAI/Synth with zero Episode targets. Nyro `ep083` renders Movement and transcription controls; its Movement proxy is healthy. Episode Recorder `:3768/compositions` remains 404. Medicine Wheel and Forgewright health remain HTTP 200; `:8790` is stopped.
+- **Failed or deferred:** no real sensor capture was performed to avoid creating or mutating composition material without human acceptance. The two gmtermux commits are local and unpushed; the current branch is 12 commits ahead of its fork remote because it now contains PR 262's ten upstream commits plus the merge and boundary commit.
+- **Next safe move:** human-test Start Movement → Stop + Attach from a disposable composition, then push `refactor/cross-importing-modules-260805` to the fork only when William explicitly requests publication.
+
+## 2026-08-22 — Episode 333 movement captures associated locally
+
+- **Found:** Episode 333’s transcript names two movement captures after Songbird take `260816160542`; its composition notes identify `260816160613` as Opus 017’s timing/dynamics source and `260816160647` as its ending gesture. The movement evidence belongs directly to Opus 017, while Opus 018 is grounded in the later park transcription.
+- **Changed:** copied those two capture triplets from `miadi-studio/movement/` into `miadi-studio/jamai/op003-la-bifurcation-ep333/` using the current `_movement` naming convention; added both records to `composition.json`; committed exactly those seven paths as `2151f219bcbbcbd8e6d948148cebc354711e57c9` and pushed Chronicle/episodes `main`. Standalone originals remain intact.
+- **Verified:** composition JSON parses; both records resolve to JSONL, provenance, and summary files; copied JSONL and summaries are byte-identical to their originals; `git diff --check` passes. Local `HEAD`, `origin/main`, and `ls-remote origin main` all equal `2151f219bcbbcbd8e6d948148cebc354711e57c9`, with zero divergence; the Episode 333 path is clean.
+- **Failed or deferred:** none for this association and publication.
+- **Next safe move:** the other computer can pull episodes `main` and classify its remaining exported creative and agent artifacts without recreating Episode 333’s movement association.
+
+## 2026-08-22 — Aureon ava002 movement captures associated and pushed
+
+- **Found:** `ava002` carries grounded evidence for five movement takes: `260816133652` (Opus 018 rotations), `260816164326` (Opus 019 gesture), `260816164423` (paired with the prior take for Opus 020), `260816171428` (explicit 100 Hz Opus 022 capture), and `260816173315` (explicit Opus 023 transition source).
+- **Changed:** copied those five capture triplets from `miadi-studio/movement/` into `miadi-studio/aureon/ava002/` with `_movement` names, registered all five in `composition.json`, committed exactly those 16 paths as `60c8d53f423823a612ce26097d2a4a4a13e20089`, and pushed episodes `main`.
+- **Verified:** all metadata and provenance JSON parses; all five copied JSONL and summary files are byte-identical to their standalone originals; local `HEAD`, `origin/main`, and `ls-remote origin main` agree at `60c8d53f423823a612ce26097d2a4a4a13e20089`; `ava002` is clean.
+- **Failed or deferred:** none.
+- **Next safe move:** the other computer can pull episodes `main`; no further `ava002` movement migration is needed unless new evidence identifies another capture.
+
+## 2026-08-22 — Medicine Wheel 0.6.3 upgrade restart loop repaired
+
+- **Found:** the release upgrade had completed source/build/global-package work, but Medicine Wheel 0.6.3's bare `GET /api/nodes` returns the provider's first 100 nodes. The workbench manager searched only that page for `chronicle:miadi-chronicle`, falsely declared the existing root missing, and made the watchdog repeatedly restart healthy services while holding the launcher lock.
+- **Changed:** updated `~/bin/ensure-miadi-workbench.sh` to verify the root through direct `GET /api/nodes/chronicle%3Amiadi-chronicle`; reloaded only the stale watchdog wrapper; ran the full canonical `~/scripts/mw-fw-upgrade.sh`; restored the tmux watchdog. The manager fix remains an uncommitted tracked change in the live gmtermux worktree.
+- **Verified:** the full upgrader completed at 23:22 with Medicine Wheel app/MCP `0.6.3` at `21635d8`, Forgewright `0.2.0` at `554b175`, 81 global and HTTP MCP tools, both health endpoints healthy, and the Chronicle root registered. One 60-second watchdog cycle left both service pane PIDs unchanged, logged `OK required workbench services healthy`, and released the launcher lock.
+- **Failed or deferred:** Recharts deprecation and npm `allow-scripts` notices for Sharp are non-fatal release-package warnings; Sharp's install check ran successfully. No dependency/source mutation was made for those upstream warnings, and the local manager fix was not committed or pushed.
+- **Next safe move:** use `~/scripts/mw-fw-upgrade.sh` normally; when publication is requested, review and commit only the direct root-node check under the existing gmtermux issue-12 lineage.
+
+## 2026-08-25 — Episode Recorder fullscreen ceremony notes
+
+- **Found:** the live gmtermux branch already contains and has pushed the prior Episode creation work (`0533e20`, `c296b03`), including create-before-recording and first-take vessel-text publication.
+- **Changed:** opened and closed fork issue `miadisabelle/gmtermux#79`; added reusable `/lib/fullscreen-editor.{js,css}` and mounted it around each ceremony's existing Working notes textarea and Save notes action. Committed and pushed `8848479` on `refactor/cross-importing-modules-260805`, then respawned only the exact Episode Recorder tmux pane on `:3768`.
+- **Verified:** focused tests pass 15/15; local and fork branch heads agree. Live Episode 339 renders three ceremony cards with the fullscreen toggle and Save notes, and `:3768` serves byte-identical component assets over HTTP 200.
+- **Failed or deferred:** the broad suite passed 187/188; its unrelated inert-import port probe failed because the managed Movement Studio already owns live port `8776`. No physical browser tap/save was performed against William's notes.
+- **Next safe move:** human-tap one Working notes fullscreen icon and save a deliberate note; no source change is expected unless that tactile acceptance exposes an Android-specific issue.
+
+## 2026-08-25 — fullscreen ceremony-note deep links
+
+- **Found:** the shared fullscreen editor can carry navigation generically whenever its host gives the editor an HTML id; no Episode-specific URL logic is needed inside the controller.
+- **Changed:** opened and closed fork issue `miadisabelle/gmtermux#80`; ceremony note editors now use `#ceremony-<UUID>-note`, while the shared component synchronizes, restores, and reacts to that hash. Committed and pushed `b224a4a`, then respawned only the exact Episode Recorder pane on `:3768`.
+- **Verified:** focused tests pass 16/16 and local/fork heads agree. The live Episode 339 page exposes a verified `#ceremony-78f215e9-eee5-4ac2-88e8-544cf54f9cf2-note` target and serves the exact updated controller; `:3768` remains enabled and listening.
+- **Failed or deferred:** no physical browser reload/copy gesture was performed; component routing and the live destination were verified independently.
+- **Next safe move:** copy or reload one live note URL on Ilex and confirm the addressed editor opens without summoning the keyboard unexpectedly.
+
+## 2026-08-25 — Episode Recorder transcription lifecycle refresh
+
+- **Found:** the `:3768` stop handler did not refresh the Episode inbox until the Groq transcription request completed, so the durable recording remained invisible during the longest stage; manual transcription also left the take header stale.
+- **Changed:** gmtermux commit `72fb79fa82ee7f9c9c37c1df39ab061026de3ad1` on `refactor/cross-importing-modules-260805` refreshes immediately after stop, shows a bounded transcribing state, disables premature transcript/store gestures, and refreshes again on completion or retry. The canonical full portal profile was restarted; the commit remains local and unpushed as requested.
+- **Verified:** Episode Recorder tests pass 13/13; JavaScript syntax and whitespace checks pass. The broad suite passes 189/190, with only the known live Movement Studio `:8776` inert-import probe conflict. Live `https://127.0.0.1:3768/` returns HTTP 200 with the new lifecycle UI, Episode and inbox reads are online, `/compositions` remains 404, all portal ports listen, and Medicine Wheel plus Forgewright remain healthy.
+- **Failed or deferred:** replaying tmux's quoted `pane_start_command` through `respawn-pane` exited and removed the Episode pane; `~/bin/ensure-portals.sh restart` immediately restored the complete supervised profile. No physical recording or paid transcription was created during shell verification, and no push was requested.
+- **Next safe move:** human-test one short inbox take through Stop & Transcribe; it should appear immediately as Transcribing, then open its transcript without another tap. Push the current fork branch only when William requests publication.
+
+## 2026-08-26 — Opus 004 copied to Eury for Abies
+
+- **Found:** Ilex’s stale direct Eury Tailscale name no longer resolves and its ngrok fallback refuses connections; Gaia can still reach Eury through its configured `eury` SSH route.
+- **Changed:** streamed the complete current directory `miadi-studio/jamai/op004-la-bifurcation-ep333/` through Gaia without staging it there, creating Eury `/home/mia/compositions-jamai/4abies/`; the Ilex source remains intact.
+- **Verified:** all 217 regular-file SHA-256 hashes match, and the complete 236-entry tree structure matches; Eury reports the destination at 50 MB.
+- **Failed or deferred:** direct Ilex-to-Eury access remains stale; the successful copy used Gaia as a relay.
+- **Next safe move:** JamAI or Abies can continue from Eury `~/compositions-jamai/4abies/`; repair Ilex’s direct Eury alias only in a separate networking task.
+
+## 2026-08-26 — Eury 4abies destination corrected
+
+- **Found:** William intended the `gmusic` account root `/home/gmusic/4abies/`, not Mia’s JamAI composition root.
+- **Changed:** streamed the complete Ilex source again through Gaia into `/home/gmusic/4abies/`, owned by `gmusic:gmusic`; the earlier `/home/mia/compositions-jamai/4abies/` copy remains preserved.
+- **Verified:** all 217 regular-file SHA-256 hashes and the complete 236-entry tree structure match the Ilex source; Eury reports the corrected destination at 50 MB.
+- **Failed or deferred:** the superseded Mia-account copy was not deleted without explicit instruction.
+- **Next safe move:** work from `/home/gmusic/4abies/`; remove the earlier Mia-account copy only if William explicitly requests it.
+
+## 2026-08-27 — Episode shelf search refinement deployed
+
+- **Found:** the Episode Recorder shelf indexed numeric `97` but not its padded Chronicle identity `097`, and omitted the canonical folder slug/path from its search corpus.
+- **Changed:** opened fork issue `miadisabelle/gmtermux#81`; commit `06919680351eeafc797e1abe4795481b0debbac8` adds padded/unpadded numbers, title, slug, folder path, and goal to each shelf card's search text. The commit is pushed on `refactor/cross-importing-modules-260805`, and the full portal profile was restarted.
+- **Verified:** focused Episode Recorder tests pass 14/14; the live selected Episode 097 page returns HTTP 200 and matches `097`, `97`, `ceremony`, `agent`, and `skills`; all managed full-profile ports plus Medicine Wheel and Forgewright listen.
+- **Failed or deferred:** the broad suite passes 190/191; only the known unrelated Movement Studio import probe fails because the live supervised service already owns port `8776`. No physical browser typing gesture was observable from the shell.
+- **Next safe move:** use the shelf normally; only reopen issue 81 if an Android browser reveals a query-normalization edge not covered by number/title/folder matching.
+
+## 2026-08-27 — Exact Episode ranking and paired embodied capture deployed
+
+- **Found:** entering `140` needed exact identity ranking rather than opaque substring hiding. Independently, Movement `Stop + Attach` scheduled a page reload after 700 ms, destroying an active Songbird MediaRecorder and its minute-long voice-to-MIDI processing chain.
+- **Changed:** pushed gmtermux commits `db35055` (`#81`) and `4bfa48c` (`#73`) on the live current branch. Episode filtering now lives in reusable `episode-shelf-filter.js`, ranks exact numbers first, reports counts, and provides explicit home links. Reusable `capture-pair-controller.js` coordinates Songbird + Movement; explicit adapters return start/stop promises; bundle state is persisted and server-verified through `capture-bundles.js`; independent controls remain. The full portal profile was restarted.
+- **Verified:** live Episode 140 returns HTTP 200 and the module ranks `140` before `1400` and text mentions. Live JamAI Opus 004 renders the combined bar between Songbird and Movement; its six inline scripts parse, the served controller is byte-identical, and the non-mutating route proof returns the expected 404. Focused paired/composition tests pass 43/43; full suite passes 202/203; every managed port and both workbench health endpoints are healthy. Local and fork branch heads agree at `4bfa48c48dd5899e252b55d2764b11927f3b18c1`.
+- **Failed or deferred:** the only suite failure is the known unrelated port-8776 inert-import probe while Movement Studio is intentionally live. No real microphone/sensor take was created; issue `#73` remains open for William's physical Start both → Stop both acceptance and terminal bundle receipt. Issue `#81` is closed.
+- **Next safe move:** in one composition, record a short combined take, press only `Stop both`, remain on the page through Songbird processing, then verify the terminal complete/partial message before using Refresh attached takes.
+
+## 2026-08-27 — Aureon pre-fix Songbird loss boundary witnessed
+
+- **Found:** Aureon composition `ava004-sactrda` preserves Movement take `260827111050` (898.706 s, 8,971 packets), but the contemporaneous long Songbird voice never reached disk. The pre-fix composition UI held MediaRecorder output in browser memory until Stop; stopping Movement reloaded the page and destroyed that in-memory recording before `/import`. `260827111035.m4a` is a separate 8.94 s ordinary recording. `260827112601.m4a` is only a later 3.26 s Songbird take, with its MIDI and Nyro sidecar attached.
+- **Changed:** no capture, composition, or runtime file was changed; only this successor witness was appended.
+- **Verified:** filesystem searches found no matching long audio or temporary browser artefact; `ffprobe`, composition JSON inspection, and hashes prove the surviving identities. Fix commit `4bfa48c` landed at 11:52 local, after the 11:10–11:26 incident.
+- **Failed or deferred:** the lost browser-only media cannot be recovered from Ilex storage after the document reload. Movement evidence remains durable.
+- **Next safe move:** use the deployed `Start both` → `Stop both` bar and remain on-page through processing; future durability work should stage timesliced Songbird chunks before final Stop so navigation cannot erase a long take.
