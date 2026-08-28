@@ -379,3 +379,11 @@ At the snapshot, the Chronicle had pre-existing live JSONL store changes and an 
 - **Verified:** filesystem searches found no matching long audio or temporary browser artefact; `ffprobe`, composition JSON inspection, and hashes prove the surviving identities. Fix commit `4bfa48c` landed at 11:52 local, after the 11:10–11:26 incident.
 - **Failed or deferred:** the lost browser-only media cannot be recovered from Ilex storage after the document reload. Movement evidence remains durable.
 - **Next safe move:** use the deployed `Start both` → `Stop both` bar and remain on-page through processing; future durability work should stage timesliced Songbird chunks before final Stop so navigation cannot erase a long take.
+
+## 2026-08-28 — Opus 004 paired capture and no-expiry watcher
+
+- **Found:** the old Lightning four-minute clock started at arm and expired before William pressed Start both. The subsequent paired take did survive: Songbird `260828125325.m4a/.mid` and Movement `260828125135_movement.jsonl` plus sidecars. The producer receipt is partial only because Movement Studio timed out answering Stop after attachment.
+- **Changed:** explicitly recovered V7, then published the requested shared-seed contrast as V8 movement-neutral and V9 movement-interpreted with the finalized pre-capture direction; both pass 10/10. Watcher v4 now waits indefinitely before producer Start both, begins its duration at declared start, closes on terminal Stop both, and retains the latest pre-arm transcription as direction. Pipeline 2.3.0 supports explicit neutral/interpreted modes.
+- **Verified:** 22/22 watcher tests, 23/23 Python tests, Pi extension load, and live V8/V9 MP3/MIDI/score routes pass; MP3 Range is 206.
+- **Failed or deferred:** the historical producer receipt remains partial and is not rewritten. The timeout defect itself is corrected and pushed in gmtermux `aa1cf3f`: Movement Stop gets 30 seconds while status/start retain five; 39 focused tests pass and JamAI `:4768` restarted healthy.
+- **Next safe move:** William runs `/reload`; then `/lightning-arm 4` must show no deadline until Start both. Use Start both → perform → Stop both; no `/lightning-finish` is required.
