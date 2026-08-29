@@ -1,7 +1,7 @@
 ---
 name: chronicle-episode
 description: Create, adopt, attach captures to, register, verify, commit, or publish Miadi Chronicle episode vessels on William's Ilex Android/Termux host. Use for mkepisode/passages work, new Episode Recorder episode creation, Chronicle capture/transcript publication, or any request to close an episode through disk, Git, Medicine Wheel, and receipt proofs.
-compatibility: Ilex Android/Termux with passages mkepisode >=0.2.0, Chronicle worktree, Git, and Medicine Wheel on port 8040.
+compatibility: Ilex Android/Termux with passages mkepisode >=0.2.0 (0.3.1 current alignment floor), Chronicle worktree, Git, and Medicine Wheel on port 8040.
 ---
 
 # Chronicle Episode
@@ -35,10 +35,18 @@ The retired local bare path is not the active origin. Measure `git remote -v`; d
 command -v mkepisode
 mkepisode --help | grep -- --adopt
 npm view passages version
-npm ls -g passages --depth=0
+npm view @miadi/inquiry-weave version
+npm ls -g --all passages @miadi/inquiry-weave @miadi/episodic-memory-schema
+node - <<'NODE'
+const { createRequire } = require('node:module')
+const { execFileSync } = require('node:child_process')
+const { realpathSync } = require('node:fs')
+const executable = realpathSync(execFileSync('which', ['mkepisode'], { encoding: 'utf8' }).trim())
+console.log({ executable, weave: createRequire(executable)('@miadi/inquiry-weave/package.json').version })
+NODE
 ```
 
-The floor is `passages@0.2.0`; prefer the current published version. On Ilex, install deliberately with:
+`passages@0.2.0` is the adoption capability floor; `passages@0.3.1` is the current alignment floor because its registry range reaches `@miadi/inquiry-weave` 0.8.x. A current top-level weave does not prove what `mkepisode` loads. On Ilex, install the reviewed release deliberately with:
 
 ```bash
 npm install -g passages@<reviewed-version> --prefer-online
@@ -92,6 +100,8 @@ mkepisode \
 
 Use argv-based process execution in applications; never concatenate browser input into a shell command. `--adopt` is only for one already-existing, manifest-less, unambiguous episode and never for ordinary birth.
 
+For a governed birth, `mkepisode` writes the desired result and ordered provenance first. Do not substitute `inquiry-weave inquire --new-episode` or `promote --new-episode`; those relational commands can scaffold a compatibility vessel but do not own the required goal/reference contract. Relate or inquire against the created episode afterward.
+
 ## Capture custody
 
 A capture may be copied under `<episode>/captures/<take-stem>/`, but compressed raw media remains device-local and ignored by Chronicle Git. Never force-add `.m4a`, `.mp4`, `.mov`, or `.wav`.
@@ -120,6 +130,8 @@ Report each stage independently:
 3. **pushed** — `git rev-list --count origin/main..main` is `0` after fetch;
 4. **registered** — `GET /api/nodes/chronicle:<episode-folder>` returns `200`;
 5. **receipt-verified** — `.mw-registration.json` state and URL agree with the live read.
+
+Then run `inquiry-weave resolve "miadi-chronicle:<episode-folder>" --verify --json` and require its Wheel leg to agree with the exact node API. Chronicle and Wheel page routes are client-routed and may return 200 for absent names; page status is never node-existence proof.
 
 A pending receipt is debt, not success. A local save remains successful if later registration or publication refuses.
 
