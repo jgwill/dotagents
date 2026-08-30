@@ -387,3 +387,11 @@ At the snapshot, the Chronicle had pre-existing live JSONL store changes and an 
 - **Verified:** 22/22 watcher tests, 23/23 Python tests, Pi extension load, and live V8/V9 MP3/MIDI/score routes pass; MP3 Range is 206.
 - **Failed or deferred:** the historical producer receipt remains partial and is not rewritten. The timeout defect itself is corrected and pushed in gmtermux `aa1cf3f`: Movement Stop gets 30 seconds while status/start retain five; 39 focused tests pass and JamAI `:4768` restarted healthy.
 - **Next safe move:** William runs `/reload`; then `/lightning-arm 4` must show no deadline until Start both. Use Start both → perform → Stop both; no `/lightning-finish` is required.
+
+## 2026-08-28 — Opus 004 V10 musical-quality mediation
+
+- **Found:** William rejected V9's repeatedly cycling non-guitar accompaniment despite its 10/10 structural ledger. MIDI identifies picked bass as the strongest candidate without claiming perceptual certainty: 136/136 body bass attacks coincided with rhythm guitar, exact guitar/bass bar runs reached five, and drums reached six.
+- **Changed:** pipeline 2.4.0 adds `musically-mediated` mode and makes it the default for future automatic captures. Movement is smoothed into four-bar phrase arcs; bass, rhythm guitar, drums, lead, and cadence receive phrase-level arrangement. Three pre-MIDI gates now measure accompaniment repetition, bass independence, and drum phrasing. Episode 333 and the composition each carry a musical-quality witness.
+- **Verified:** V10 `a70806438a816e8d563f` attempt 1 stayed unpublished at 12/13 (bass coincidence 0.863636). Attempt 2 published at 13/13 with coincidence 0.681818, 32 drum patterns, and identical-bar runs of one. Current tests pass 22/22 watcher and 25/25 Python; Pi extension load and V10 page/API/media/score routes pass, with audio Range 206.
+- **Failed or deferred:** a full mix cannot prove which timbre William perceived, and 13/13 does not establish aesthetic acceptance. William has not yet listened to V10. Watcher v4 runtime acceptance still requires his `/reload`.
+- **Next safe move:** listen to V10 first. If the loop remains, preserve it and use private diagnostic stems or William's timbre identification before another revision; do not weaken the new gates or infer perceptual certainty from MIDI alone.
