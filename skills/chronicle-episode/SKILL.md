@@ -1,12 +1,15 @@
 ---
 name: chronicle-episode
-description: Create, adopt, attach captures to, register, verify, commit, or publish Miadi Chronicle episode vessels on William's Ilex Android/Termux host. Use for mkepisode/passages work, new Episode Recorder episode creation, Chronicle capture/transcript publication, or any request to close an episode through disk, Git, Medicine Wheel, and receipt proofs.
-compatibility: Ilex Android/Termux with passages mkepisode >=0.2.0 (0.3.1 current alignment floor), Chronicle worktree, Git, and Medicine Wheel on port 8040.
+description: Create, adopt, attach captures to, register, work with Attention, verify, commit, or publish Miadi Chronicle episode vessels on William's Ilex Android/Termux host. Use for mkepisode/passages work, new Episode Recorder episode creation, Chronicle decisions/captures/transcripts, or closing an episode through disk, Git, Medicine Wheel, and receipt proofs.
+metadata:
+  compatibility: Ilex Android/Termux with passages mkepisode >=0.2.0 (0.3.1 current alignment floor), Chronicle worktree, Git, and Medicine Wheel on port 8040.
 ---
 
 # Chronicle Episode
 
 Use this skill for every write to the Miadi Chronicle. A vessel is not complete merely because its directory exists.
+
+This is the Ilex host variant. `/etc/claude-code/skills/chronicle-episode` owns Gaia-specific paths and recovery history. Keep the lifecycle contract aligned, but never copy one host’s literal paths into the other.
 
 ## Authority and paths
 
@@ -101,6 +104,35 @@ mkepisode \
 Use argv-based process execution in applications; never concatenate browser input into a shell command. `--adopt` is only for one already-existing, manifest-less, unambiguous episode and never for ordinary birth.
 
 For a governed birth, `mkepisode` writes the desired result and ordered provenance first. Do not substitute `inquiry-weave inquire --new-episode` or `promote --new-episode`; those relational commands can scaffold a compatibility vessel but do not own the required goal/reference contract. Relate or inquire against the created episode afterward.
+
+## Name and work with the vessel
+
+Creation, naming, relations, and human decisions have separate owners:
+
+- `chronicle-episode` owns vessel birth and the five-stage proof.
+- `chronicle-reference` owns the portable `miadi-chronicle:<number>[/artifact]` identity and resolves local, tailnet, public, wheel, and file destinations.
+- `inquiry-weave` owns inquiry relations, lineage, and catalogs.
+- `attention.json`, operated through passages/inquiry-weave, owns questions that wait for a human word.
+
+Resolve the portable name before opening or linking:
+
+```bash
+inquiry-weave resolve 'miadi-chronicle:<number>' --json
+inquiry-weave resolve 'miadi-chronicle:<number>' --verify --json
+```
+
+Use the Attention verbs instead of editing JSON for ordinary work:
+
+```bash
+passages attention add --episode 'miadi-chronicle:<number>' --id '<stable-id>' --question '<one decision>' --unlocks '<what answering releases>' --depth '<episode-local context ref>'
+passages attention list --episode 'miadi-chronicle:<number>'
+passages attention answer --episode 'miadi-chronicle:<number>' --id '<stable-id>' --answer '<the human word>'
+passages attention sync --episode 'miadi-chronicle:<number>'
+```
+
+The episode room foregrounds open decisions, keeps answered decisions under **History**, and collapses to **Attention complete** when 0 remain open. Public visitors may read questions, context, answers, and history. Only loopback, an allowlisted Tailscale identity, or writer authority may answer. The same service is available to agents as `chronicle_attention_list`, `chronicle_attention_get`, and `chronicle_attention_answer` through `inquiry-weave-mcp`.
+
+Never submit a guessed answer to test access. Read the HTTP capability response or the room’s rendered access mode, and preserve the human’s exact word when answering.
 
 ## Capture custody
 
