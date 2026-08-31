@@ -141,4 +141,8 @@ vite.config.ts.timestamp-*
 # Agent session / tooling state — per-machine, never shared skill content
 .hch
 .coaia
-.pde
+
+# .pde N'EST PAS un état de machine : une décomposition est la trace de la
+# manière dont une consigne a été comprise. C'est de la matière de chronique,
+# elle se commite avec le travail qu'elle explique. Désignorée le 2026-08-05.
+!.pde

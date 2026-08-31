@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# atelier-on-drop <atelier> <fichier> — appelé par atelier-watch pour chaque dépôt.
+#
+# Généralisation de jamai-on-drop. ZÉRO token de modèle. Il établit ce qu'est le
+# fichier, à la mesure, et range tout dans un dossier. Whisper (Groq) est appelé
+# pour la parole : ~0,0001 $ la minute d'audio, et ce n'est pas un modèle de
+# raisonnement.
+#
+# Il ne compose rien et ne décide rien de créatif. Il prépare le terrain, puis
+# passe la main à l'action propre à l'atelier — s'il y en a une.
+#
+# Résultat : ~/.local/state/episode-voice/drops/<atelier>/<nom>/
+#     verdict.txt   la ligne qui résume — parole / musique / midi / texte
+#     verdict.env   la MÊME chose en variables, pour que l'aiguillage soit du
+#                   bash et pas une relecture de prose par un modèle. Il porte
+#                   DEUX types, pas un : KIND = ce QU'EST le fichier ;
+#                   TYPE_SORTIE = ce que le dépôt OUVRE dans cet atelier.
+#                   « un dépôt → une composition » est faux en général — aureon
+#                   ouvre un contenant parmi quatre, choisi par signature.
+#     probe.txt     ffprobe
+#     mesure.txt    timbre, énergie par bande, pouls, carte temporelle
+#     notes.txt     (MIDI) le relevé note à note + les accords
+#     texte.txt     (parole) la transcription horodatée
+#
+# Puis, si <racine>/ateliers/<atelier>/after-drop est exécutable, il est appelé :
+#     after-drop <atelier> <fichier> <dossier de sortie>
+# C'est LÀ que vit ce qui diffère d'un atelier à l'autre — republier, ranger
+# dans une unité, ou réveiller un agent. Le crochet commun ne connaît que la
+# mesure ; les règles sont dans la table et l'action est dans ce fichier-là.
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/atelier-veille-lib.sh"
+
+ATELIER="${1:?usage: atelier-on-drop <atelier> <fichier>}"
+F="${2:?usage: atelier-on-drop <atelier> <fichier>}"
+[ -f "$F" ] || av_die "introuvable : $F"
+av_champ "$ATELIER" 1 >/dev/null
+
+OUT="$(av_drops_dir "$ATELIER" "$(basename "$F")")"
+mkdir -p "$OUT"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+KIND=inconnu; DUREE=""; CENTROIDE=""; SOUS250=""; TEXTE=""; NOTES=""
+verdict() { printf '%s\n' "$*" | tee "$OUT/verdict.txt"; }
+sceller() {                       # l'aiguillage se lit en bash, pas en prose
+  { printf 'ATELIER=%q\n' "$ATELIER"
+    printf 'FICHIER=%q\n' "$F"
+    printf 'DOSSIER=%q\n' "$OUT"
+    printf 'KIND=%q\n'    "$KIND"
+    printf 'MODE=%q\n'    "$(av_mode "$ATELIER")"
+    printf 'UNITE=%q\n'   "$(av_unite "$ATELIER")"
+    # ce qu'un dépôt OUVRE ici — jamais supposé uniforme : piece · episode ·
+    # journal (un contenant parmi plusieurs, choisi par signature) · ?
+    printf 'TYPE_SORTIE=%q\n' "$(av_sortie "$ATELIER")"
+    printf 'DUREE=%q\n'     "${DUREE:-}"
+    printf 'CENTROIDE=%q\n' "${CENTROIDE:-}"
+    printf 'SOUS250=%q\n'   "${SOUS250:-}"
+    printf 'TEXTE=%q\n'     "${TEXTE:-}"
+    printf 'NOTES=%q\n'     "${NOTES:-}"
+  } > "$OUT/verdict.env"
+}
+
+case "$(printf '%s' "$F" | tr '[:upper:]' '[:lower:]')" in
+
+  *.mid|*.midi)
+    KIND=midi
+    python3 "$AV_OUTILS/jamai-midi.py" "$F" > "$TMP/notes.txt" 2>&1 \
+      || { verdict "MIDI illisible"; KIND=illisible; sceller; exit 1; }
+    # Compter AVANT d'ajouter la sortie de l'outil d'accords, sinon ses lignes
+    # sont comptées comme des notes. Et prendre le DERNIER événement tempo :
+    # un exporteur en écrit souvent deux, et c'est le dernier qui s'applique.
+    n=$(awk '$1 ~ /^[0-9]+$/ && $2 ~ /^[0-9.]+$/ {c++} END{print c+0}' "$TMP/notes.txt")
+    bpm=$(grep -o 'tempo [0-9.]* BPM' "$TMP/notes.txt" | tail -1)
+    amb=$(sed -n 's/^ *ambitus *: *//p' "$TMP/notes.txt" | tail -1)
+    cp "$TMP/notes.txt" "$OUT/notes.txt"
+    python3 "$AV_OUTILS/jamai-chords.py" "$F" 4 >> "$OUT/notes.txt" 2>&1 || true
+    NOTES="$OUT/notes.txt"
+    verdict "MIDI — $n notes, ${bpm:-tempo inconnu}${amb:+, ambitus $amb}. Relevé : $OUT/notes.txt"
+    ;;
+
+  *.m4a|*.mp3|*.wav|*.mp4|*.mov|*.webm|*.ogg|*.flac)
+    ffprobe -v error -show_format -show_streams -of default=noprint_wrappers=1 "$F" \
+      > "$OUT/probe.txt" 2>&1
+    ffmpeg -v error -y -i "$F" -map 0:a:0 -ac 1 -ar 22050 "$TMP/a.wav" 2>/dev/null \
+      || { verdict "aucune piste audio exploitable"; KIND=muet; sceller; exit 0; }
+
+    python3 "$AV_OUTILS/jamai-measure.py" "$TMP/a.wav" > "$OUT/mesure.txt" 2>&1 || true
+    CENTROIDE=$(sed -n 's/^centroïde spectral *: *\([0-9]*\) Hz/\1/p' "$OUT/mesure.txt" | head -1)
+    SOUS250=$(sed -n 's/^ *0– *250 Hz *: *\([0-9.]*\) %.*/\1/p'       "$OUT/mesure.txt" | head -1)
+    DUREE=$(sed -n 's/^durée *: *\([0-9.]*\) s.*/\1/p'                "$OUT/mesure.txt" | head -1)
+
+    # Le discriminant fiable est le GRAVE, pas le médium. Mesuré sur les dépôts
+    # de la séance du 2026-08-04 : parole 13,8 / 17,6 / 37,6 % sous 250 Hz ;
+    # fredon 73,1 %. Le premier seuil, posé sur le médium (250–1000 Hz > 60 %),
+    # classait 260804222416.mov en musique alors que c'est une consigne parlée —
+    # son médium n'était qu'à 53,3 %. Ce seuil-là est mort ; ne le ressuscite pas.
+    KIND=musique
+    awk "BEGIN{exit !(${SOUS250:-100} < 50 && ${CENTROIDE:-0} > 350)}" && KIND=parole
+
+    if [ "$KIND" = parole ]; then
+      KEY=$(grep -m1 '^GROQ_API_KEY=' "$HOME/.env" 2>/dev/null | cut -d= -f2-)
+      if [ -n "${KEY:-}" ]; then
+        ffmpeg -v error -y -i "$F" -map 0:a:0 -c:a aac -b:a 96k -ac 1 "$TMP/a.m4a" 2>/dev/null
+        curl -s --max-time 180 https://api.groq.com/openai/v1/audio/transcriptions \
+          -H "Authorization: Bearer $KEY" -F "file=@$TMP/a.m4a" \
+          -F model=whisper-large-v3 -F language=fr -F response_format=verbose_json \
+          > "$TMP/g.json" 2>/dev/null
+        python3 - "$TMP/g.json" > "$OUT/texte.txt" <<'PY' 2>/dev/null || true
+import json,sys
+d=json.load(open(sys.argv[1]))
+if 'error' in d: print('ERREUR:', d['error']); raise SystemExit
+for s in d.get('segments',[]): print(f"[{s['start']:6.1f}] {s['text'].strip()}")
+PY
+        [ -s "$OUT/texte.txt" ] && TEXTE="$OUT/texte.txt"
+      fi
+      head=$(head -c 220 "$OUT/texte.txt" 2>/dev/null | tr '\n' ' ')
+      verdict "PAROLE — ${DUREE:-?} s, centroïde ${CENTROIDE:-?} Hz, ${SOUS250:-?} % sous 250 Hz. ${head:-transcription indisponible}"
+    else
+      verdict "MUSIQUE — ${DUREE:-?} s, centroïde ${CENTROIDE:-?} Hz, ${SOUS250:-?} % sous 250 Hz. Mesure : $OUT/mesure.txt"
+    fi
+    ;;
+
+  *.txt|*.md|*.json)
+    KIND=texte; cp "$F" "$OUT/texte.txt"; TEXTE="$OUT/texte.txt"
+    verdict "TEXTE — $(wc -l < "$F") lignes, $(wc -c < "$F") octets"
+    ;;
+
+  *)
+    KIND=inconnu
+    verdict "type non traité : $(basename "$F")"
+    ;;
+esac
+
+sceller
+
+# --- l'aiguillage : ce qui diffère d'un atelier à l'autre --------------------
+APRES="$AV_HOOKS/$ATELIER/after-drop"
+if [ -x "$APRES" ]; then
+  "$APRES" "$ATELIER" "$F" "$OUT" \
+    && echo "  after-drop($ATELIER) OK" \
+    || echo "  after-drop($ATELIER) en échec (code $?)"
+else
+  echo "  pas d'action propre à « $ATELIER » ($APRES absent) — verdict : $OUT/verdict.txt"
+fi
