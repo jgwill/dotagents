@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# atelier-attacher-clip <atelier> <slug> <fichier> [--label "..."]
+#
+# Attache un fichier AUDIO existant à une composition. C'est le geste « ranger la
+# source à côté de l'entrée » — sans lui, le journal cite un dépôt qui n'est nulle
+# part.
+#
+# POURQUOI CE FICHIER EXISTE
+# --------------------------
+# Le pilote `episode` ne l'expose pas. Il sait poster un texte (`text`), une image
+# (`image`), une vidéo (`video` — qui REFUSE tout ce qui n'est pas mp4/webm/mov,
+# l. 449-452), et il poste des clips depuis `say` et `video`. Un .m4a déjà sur
+# disque n'a aucune commande. Les deux appels sont pourtant les mêmes que ceux de
+# `cmd_video` :
+#     POST /import                          (champ audioFile) -> filename
+#     POST /api/compositions/<slug>/clips   {filename, label}
+# C'est un trou du pilote, pas un trou d'aureon : il est ici parce que la chaîne
+# d'aureon en a besoin aujourd'hui, et sa place définitive est dans `episode`.
+#
+# LE REGISTRE EST TENU ICI, ET CE N'EST PAS FACULTATIF
+# ----------------------------------------------------
+# `episode` note chaque fichier qu'il importe dans <état>/<atelier>-mine.txt, et
+# les veilles lisent ce registre pour ne pas se réveiller sur leur propre sortie.
+# Un import qui n'y écrit pas rouvre une unité en boucle : deux épisodes fantômes
+# ont été fabriqués ainsi le 2026-08-05. On l'écrit donc AUX DEUX chemins que le
+# pilote emploie selon qui l'appelle — la racine, et le dossier de chaque veille.
+set -uo pipefail
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/atelier-veille-lib.sh"
+
+ATELIER="${1:?usage: atelier-attacher-clip <atelier> <slug> <fichier> [--label ...]}"; shift
+SLUG="${1:?il faut un slug}"; shift
+FICHIER="${1:?il faut un fichier}"; shift
+LABEL=""; DRY=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --label)   LABEL="$2"; shift 2 ;;
+    --dry-run) DRY=1;      shift ;;
+    *) av_die "option inconnue : $1" ;;
+  esac
+done
+[ -s "$FICHIER" ] || av_die "fichier vide ou introuvable : $FICHIER"
+
+# Le portail est ÉTABLI et VÉRIFIÉ, jamais hérité : le 2026-08-05 un crochet a
+# hérité de 8768 et rangé trois épisodes dans le mauvais atelier.
+unset PIXEL_RECORDER_URL
+PORTAIL="$(av_portail_verifie "$ATELIER")" || exit 1
+[ -n "$LABEL" ] || LABEL="🎙️ source — $(basename "$FICHIER")"
+
+if [ "$DRY" -eq 1 ]; then
+  echo "  À ATTACHER (à blanc) : $SLUG ← $FICHIER  sur $PORTAIL  [$LABEL]"
+  exit 0
+fi
+
+NOM="$(curl -sk --max-time 300 -X POST "$PORTAIL/import" -F "audioFile=@$FICHIER" \
+       | python3 -c 'import json,sys; print(json.load(sys.stdin).get("filename",""))' 2>/dev/null)"
+[ -n "$NOM" ] || av_die "import refusé par $PORTAIL — rien attaché."
+
+# Le registre AVANT l'attache : si l'attache échoue, on aura ignoré un fichier
+# qu'on a réellement importé, ce qui se répare. L'inverse — un import non
+# enregistré — se paie en unités fantômes, et ne se répare pas tout seul.
+for R in "$AV_STATE/$ATELIER-mine.txt" "$AV_STATE"/veilles/"$ATELIER"--*/"$ATELIER"-mine.txt; do
+  case "$R" in *'*'*) continue ;; esac      # glob non résolu : pas de veille
+  mkdir -p "$(dirname "$R")"; printf '%s\n' "$NOM" >> "$R"
+done
+
+OUT="$(curl -sk --max-time 60 -X POST "$PORTAIL/api/compositions/$SLUG/clips" \
+        -H 'Content-Type: application/json' \
+        -d "$(python3 -c 'import json,sys; print(json.dumps({"filename":sys.argv[1],"label":sys.argv[2]}))' "$NOM" "$LABEL")")"
+printf '%s' "$OUT" | grep -q '"success":[[:space:]]*true' \
+  || av_die "attache refusée par $PORTAIL : $(printf '%s' "$OUT" | head -c 200)"
+
+echo "  clip attaché à $SLUG — $NOM"
+printf '%s\n' "$NOM"

@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""jamai-clip — monte un clip : la partition posée sur des images, système par système.
+
+Prolonge `jamai-score-video`. Là où celui-ci affiche la page seule, celui-ci
+place chaque système sur un fond filmé, en gardant la même horloge : un système
+reste à l'écran exactement le temps de ses mesures.
+
+  jamai-clip --score p.png --audio p.mp3 --bar-seconds 2.069 \
+             --footage a.mov b.mov --style panneau --out clip.mp4
+
+Deux styles, tous deux vérifiés à l'image le 2026-08-07 :
+  panneau  la partition en panneau translucide sur l'image nette — on voit le
+           lieu ET on lit les notes. C'est celui qui ressemble à un clip.
+  pleine   la partition occupe le cadre, l'image floutée derrière ne fait que
+           respirer aux bords. Plus lisible, moins filmique.
+
+Ce que ça DEMANDE, mesuré sur Eury (voir SKILL.md) : h264_nvenc fonctionne,
+VAAPI et QSV non. Un segment 1080p de 16 s se rend en ~16 s en logiciel et
+en ~2 s avec NVENC. Le décodage 4K reste, lui, à la charge du processeur.
+"""
+import argparse, os, shutil, subprocess, sys, tempfile
+from PIL import Image
+
+ICI = os.path.dirname(os.path.abspath(__file__))
+SV = os.path.join(os.path.dirname(ICI), '..', 'jamai-morning', 'scripts',
+                  'jamai-score-video.py')
+
+
+def charger_detection():
+    """Réutilise la détection de systèmes et de mesures plutôt que de la refaire.
+
+    Une seconde implémentation dériverait de la première sans prévenir : le
+    découpage doit être LE MÊME que celui de la vidéo de partition, sinon les
+    deux montages d'une même pièce ne tombent pas aux mêmes instants.
+    """
+    import importlib.util
+    chemin = os.path.normpath(SV)
+    if not os.path.exists(chemin):
+        sys.exit(f"introuvable : {chemin} — jamai-score-video.py est requis")
+    s = importlib.util.spec_from_file_location('sv', chemin)
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
+
+def duree(f):
+    r = subprocess.run(['ffprobe', '-v', 'error', '-show_entries',
+                        'format=duration', '-of', 'csv=p=0', f],
+                       capture_output=True, text=True).stdout.strip()
+    try:
+        return float(r)
+    except ValueError:
+        return 0.0
+
+
+def encodeur():
+    """NVENC s'il répond vraiment. « Listé » ne veut pas dire « fonctionne » :
+    sur cette machine VAAPI et QSV sont tous deux annoncés par ffmpeg et
+    échouent à l'exécution faute de VA display."""
+    essai = subprocess.run(
+        ['ffmpeg', '-nostdin', '-v', 'error', '-y', '-f', 'lavfi',
+         '-i', 'testsrc=size=320x240:duration=1:rate=25',
+         '-c:v', 'h264_nvenc', '-f', 'null', '-'],
+        capture_output=True)
+    if essai.returncode == 0:
+        return ['-c:v', 'h264_nvenc', '-preset', 'p5', '-cq', '23']
+    return ['-c:v', 'libx264', '-preset', 'medium', '-crf', '20']
+
+
+FILTRES = {
+    # fond net, partition en panneau posé bas — le lieu reste lisible
+    'panneau': ('gblur=sigma=2,eq=brightness=-0.04:saturation=1.05',
+                1320, '(W-w)/2:H-h-40'),
+    # fond flouté et assombri, partition presque plein cadre
+    'pleine':  ('gblur=sigma=5,eq=brightness=-0.10:saturation=0.85',
+                1700, '(W-w)/2:(H-h)/2'),
+}
+
+
+def partition_translucide(vue, panneau):
+    """Rend le FOND blanc transparent en gardant l'encre pleine.
+
+    Affaiblir toute l'image d'un coup (`colorchannelmixer=aa=…`) pâlit aussi
+    les notes : plus on voit le film, moins on lit la musique, et on choisit
+    entre les deux. En prenant l'alpha sur la luminance — blanc → transparent,
+    noir → opaque — le panneau s'efface sans que l'encre bouge. C'est la demande
+    de Jerry du 2026-08-07, mot pour mot : « qu'on voie les notes, mais qu'on
+    voie encore davantage la prise vidéo ».
+
+    `panneau` est le plancher d'opacité du blanc, de 0 (papier invisible) à 255.
+    Sans plancher, les notes sur un fond sombre perdent tout contraste.
+    """
+    L = vue.convert('L')
+    alpha = L.point(lambda v: max(255 - v, panneau))
+    return Image.merge('RGBA', (L, L, L, alpha))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--score', required=True)
+    ap.add_argument('--audio', required=True)
+    ap.add_argument('--out', required=True)
+    ap.add_argument('--bar-seconds', type=float, required=True)
+    ap.add_argument('--footage', nargs='+', required=True)
+    ap.add_argument('--style', choices=list(FILTRES), default='panneau')
+    ap.add_argument('--slow', type=float, default=1.0,
+                    help="ralenti du fond ; au-delà de ~2,5 la saccade se voit")
+    ap.add_argument('--panel', type=int, default=90,
+                    help="opacité plancher du papier, 0–255 (90 ≈ 35 %%). "
+                         "Les notes restent pleines quoi qu'il arrive.")
+    ap.add_argument('--w', type=int, default=1920)
+    ap.add_argument('--h', type=int, default=1080)
+    a = ap.parse_args()
+
+    for f in [a.score, a.audio] + a.footage:
+        if not os.path.exists(f):
+            sys.exit(f"introuvable : {f}")
+
+    m = charger_detection()
+    im = Image.open(a.score).convert('RGB')
+    gris = im.convert('L')
+    bandes = m.systemes(gris)
+    if not bandes:
+        sys.exit('aucun système détecté dans la partition')
+    portees = [(m.debut_des_portees(gris, b), b[1]) for b in bandes]
+    nb = [m.mesures(gris, p) for p in portees]
+    dur_audio = duree(a.audio)
+
+    dispo = sum(duree(f) for f in a.footage)
+    besoin = sum(nb) * a.bar_seconds
+    print(f"{len(bandes)} systèmes · {sum(nb)} mesures · musique {besoin:.1f} s "
+          f"· audio {dur_audio:.1f} s")
+    print(f"images fournies : {dispo:.1f} s pour {besoin:.1f} s de musique "
+          f"({100*dispo/max(besoin,1e-9):.0f} %)")
+    if dispo < besoin:
+        # Le dire, ne pas le cacher. Une boucle muette donnerait un clip qui a
+        # l'air complet alors qu'il répète trois fois le même plan.
+        print(f"  ⚠ il manque {besoin-dispo:.1f} s : les plans seront rebouclés")
+
+    flou, largeur, pos = FILTRES[a.style]
+    enc = encodeur()
+    print("encodeur :", enc[1])
+
+    tmp = tempfile.mkdtemp()
+    segments, t = [], 0.0
+    try:
+        for i, (bande, n) in enumerate(zip(bandes, nb)):
+            y0 = portees[i][0] if i == 0 else bande[0] - 20
+            vue = im.crop((0, max(y0, 0), im.width, min(bande[1] + 20, im.height)))
+            png = os.path.join(tmp, f'sys{i:02d}.png')
+            partition_translucide(vue, a.panel).save(png)
+
+            d = n * a.bar_seconds
+            if i == len(bandes) - 1:
+                d = max(dur_audio - t, d)
+            plan = a.footage[i % len(a.footage)]
+            seg = os.path.join(tmp, f'seg{i:02d}.mp4')
+
+            vf = (f"[0:v]setpts={a.slow}*PTS,fps=25,scale={a.w}:-2,"
+                  f"crop={a.w}:{a.h}:0:(ih-{a.h})/2,{flou}[bg];"
+                  f"[1:v]scale={largeur}:-1[sc];"
+                  f"[bg][sc]overlay={pos},format=yuv420p[v]")
+            subprocess.run(
+                ['ffmpeg', '-nostdin', '-v', 'error', '-y',
+                 '-stream_loop', '-1', '-i', plan,      # reboucle si le plan est court
+                 '-loop', '1', '-i', png,               # sinon l'overlay dure 1 image
+                 '-filter_complex', vf, '-map', '[v]', '-t', f'{d:.3f}',
+                 *enc, '-an', seg], check=True)
+            segments.append(seg)
+            print(f"  système {i+1:2d} : {n:2d} mes · {t:6.2f} → {t+d:6.2f} s · "
+                  f"{os.path.basename(plan)}")
+            t += d
+
+        liste = os.path.join(tmp, 'liste.txt')
+        open(liste, 'w').write('\n'.join(f"file '{s}'" for s in segments) + '\n')
+        subprocess.run(
+            ['ffmpeg', '-nostdin', '-v', 'error', '-y',
+             '-f', 'concat', '-safe', '0', '-i', liste, '-i', a.audio,
+             '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', a.out],
+            check=True)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    print(f"→ {a.out}  ({duree(a.out):.2f} s)")
+
+
+if __name__ == '__main__':
+    main()

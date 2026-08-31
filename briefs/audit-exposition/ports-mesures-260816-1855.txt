@@ -1,0 +1,29 @@
+mesuré le 2026-08-16 à 18:55:35 EDT
+
+PORT   PROCESSUS (pid)                          ARBRE DE CODE
+22     (propriétaire non lisible sans root)   
+25     (propriétaire non lisible sans root)   
+80     (propriétaire non lisible sans root)   
+139    (propriétaire non lisible sans root)   
+443    (propriétaire non lisible sans root)   
+445    (propriétaire non lisible sans root)   
+3001   MainThread (1967784)                     /home/gmusic/salix/repos/AetherScore
+3399   next-server (v1 (1742243)                /home/gmusic/salix/repos/mightyeagle
+3777   node (4134739)                           /home/gmusic/salix/repos/voice-bridge
+4444   node (662761)                            /home/gmusic/salix/repos/assembly-voice
+5900   (propriétaire non lisible sans root)   
+5901   x11vnc (1605286)                         /home/gmusic
+8080   (propriétaire non lisible sans root)   
+8200   (propriétaire non lisible sans root)   
+8767   MainThread (1402510)                     /home/gmusic
+8768   MainThread (1402510)                     /home/gmusic
+8789   MainThread (1123473)                     /home/gmusic/salix/repos/gmtermux
+8790   MainThread (1123473)                     /home/gmusic/salix/repos/gmtermux
+8827   MainThread (644326)                      /home/gmusic/salix/run/jamai-portal
+8828   MainThread (644326)                      /home/gmusic/salix/run/jamai-portal
+8829   MainThread (2254838)                     /home/gmusic/salix/run/jamai-portal
+8830   MainThread (2254838)                     /home/gmusic/salix/run/jamai-portal
+9000   node (3524889)                           /home/gmusic/salix/repos/assemblynetwork
+25672  (propriétaire non lisible sans root)   
+37680  (propriétaire non lisible sans root)   
+56099  (propriétaire non lisible sans root)   

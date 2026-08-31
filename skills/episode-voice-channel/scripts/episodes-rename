@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# episodes-rename <slug> "<titre>" — donner son nom à un épisode ouvert nu.
+#
+# Le crochet ouvre `ep-009` sans titre, parce que nommer est un jugement.
+# Ce script porte le jugement une fois qu'il est pris, sans rien perdre :
+# le dossier est déplacé, composition.json suit, le numéro reste.
+#
+#   episodes-rename ep-009 "Veille de tous les ateliers"
+#     -> ep-009  devient  ep-009-veille-de-tous-les-ateliers
+#
+# Ne committe rien : le dépôt appartient à Jerry.
+set -uo pipefail
+
+SLUG="${1:?usage: episodes-rename <slug> \"<titre>\"}"
+TITRE="${2:?usage: episodes-rename <slug> \"<titre>\"}"
+DIR="$HOME/compositions-episodes"
+SRC="$DIR/$SLUG"
+
+[ -d "$SRC" ] || { echo "épisode introuvable : $SRC" >&2; exit 1; }
+case "$SLUG" in ep-[0-9][0-9][0-9]*) ;; *) echo "pas un slug d'épisode : $SLUG" >&2; exit 1 ;; esac
+
+NUM="${SLUG#ep-}"; NUM="${NUM%%-*}"
+
+# Même slugification que le portail : minuscules, accents dépouillés, tirets.
+NEW="$(python3 - "ep-$NUM $TITRE" <<'PY'
+import re, sys, unicodedata
+t = unicodedata.normalize('NFD', sys.argv[1].lower())
+t = ''.join(c for c in t if unicodedata.category(c) != 'Mn')
+print(re.sub(r'^-|-$', '', re.sub(r'[^a-z0-9]+', '-', t)))
+PY
+)"
+[ -n "$NEW" ] || { echo "titre inutilisable" >&2; exit 1; }
+[ "$NEW" = "$SLUG" ] && { echo "déjà nommé ainsi : $SLUG"; exit 0; }
+[ -e "$DIR/$NEW" ] && { echo "occupé : $DIR/$NEW" >&2; exit 1; }
+
+if git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  git -C "$DIR" mv "$SLUG" "$NEW" 2>/dev/null || mv "$SRC" "$DIR/$NEW"
+else
+  mv "$SRC" "$DIR/$NEW"
+fi
+
+python3 - "$DIR/$NEW/composition.json" "$NEW" "ep-$NUM $TITRE" <<'PY'
+import json, sys
+p, slug, titre = sys.argv[1:4]
+d = json.load(open(p))
+d['slug'], d['title'] = slug, titre
+json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
+PY
+
+echo "$SLUG -> $NEW"
+echo "titre : ep-$NUM $TITRE"
+echo "(non committé — le dépôt est à Jerry)"

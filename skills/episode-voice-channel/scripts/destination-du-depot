@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""destination-du-depot <transcription.txt> [--atelier episodes]
+
+Lit une transcription et dit OÙ le dépôt doit aller. Rien d'autre.
+
+ZÉRO token de modèle : c'est une lecture de texte. La transcription, elle, a
+déjà été faite par le crochet.
+
+Sort une seule ligne sur stdout :
+
+    unite   ep-009        Jerry a nommé l'épisode neuf
+    neuf    ep            Jerry demande un épisode neuf
+    courant ep-009        rien de dit — on attache au plus récent
+    autre   op            Jerry parle d'un opus, pas d'un épisode
+
+Code de sortie 0 quand la destination est explicite, 1 quand elle est déduite.
+Le doute se voit donc dans le code de retour, pas seulement dans le texte.
+
+Éprouvé sur les dépôts réels de Jerry — voir --epreuve.
+
+DEUX GARDES, sans lesquelles il obéit à la mauvaise voix
+--------------------------------------------------------
+
+1. **Ne l'appeler que sur un fichier absent de `<atelier>-mine.txt`.**
+   Nos propres audios disent « épisode 9 » parce que c'est nous qui l'avons
+   écrit. Mesuré le 2026-08-05 : 260805081258.m4a et 260805083609.m4a
+   ressortent tous deux en `unite ep-009` — la bonne destination, mais pour
+   la mauvaise raison. Le registre est la première garde ; celui-ci est la
+   seconde.
+
+2. **Ne l'appeler que sur un fichier classé PAROLE.**
+   Whisper hallucine sur une piste sans parole. Mesuré le même jour :
+   260804224340.mp4 (la feuille capo, guitare seule) et 260805083839.mp4
+   (le canon à quatre voix) rendent « Sous-titrage Société Radio-Canada ».
+   Sans la garde, on lirait une destination dans du bruit.
+
+Le crochet connaît déjà les deux : le registre et le verdict parole/musique.
+"""
+import re, sys, unicodedata
+
+MOTS = {
+    "zero":0,"un":1,"une":1,"deux":2,"trois":3,"quatre":4,"cinq":5,"six":6,
+    "sept":7,"huit":8,"neuf":9,"dix":10,"onze":11,"douze":12,"treize":13,
+    "quatorze":14,"quinze":15,"seize":16,"vingt":20,
+}
+# « neuf » est à la fois le nombre 9 et l'adjectif « nouveau ». Le sens se lit
+# à la position : APRÈS le mot épisode c'est l'adjectif, AVANT c'est le nombre.
+UNITES = {
+    "episode": "ep", "episodes": "ep", "ep": "ep",
+    "opus": "op", "op": "op",
+    "journal": "jr", "journaux": "jr", "jr": "jr",
+}
+NEUF_ADJ = re.compile(r"\b(episode|opus|journal)s?\s+(neuf|nouveau|nouvelle)\b")
+DEMANDE_NEUF = re.compile(
+    r"\b(nouvel|nouveau|nouvelle|ouvrir|ouvre|ouvrons|cree|creer|creons|"
+    r"pars|part|partir|partons|lance|lancer|demarre|demarrer|commence|commencer)"
+    r"\s+(?:un|une|le|la|l')?\s*(episode|opus|journal)\b")
+
+
+def sans_accent(s):
+    s = unicodedata.normalize("NFD", s.lower())
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def lire(texte):
+    """→ (genre, valeur, raison). genre ∈ unite | neuf | courant | autre."""
+    t = sans_accent(texte)
+    t = re.sub(r"\s+", " ", t)
+
+    # 1. « un nouvel épisode », « ouvre un opus »
+    m = DEMANDE_NEUF.search(t)
+    if m:
+        return "neuf", UNITES[m.group(2)], f"« {m.group(0)} »"
+
+    # 2. « épisode neuf » au sens d'adjectif — même chose, formulé à l'envers
+    m = NEUF_ADJ.search(t)
+    if m and m.group(2) in ("nouveau", "nouvelle"):
+        return "neuf", UNITES[m.group(1)], f"« {m.group(0)} »"
+
+    # 3. « épisode 9 », « épisode neuf », « l'opus 3 », « ep-009 »
+    for mot, prefixe in UNITES.items():
+        for m in re.finditer(rf"\b{mot}\s*[-–]?\s*(\d{{1,3}}|[a-z]+)\b", t):
+            brut = m.group(1)
+            n = int(brut) if brut.isdigit() else MOTS.get(brut)
+            if n is None:
+                continue
+            # « épisode neuf » : 9 si un numéro 9 existe déjà, sinon c'est
+            # l'adjectif. On ne tranche pas ici — l'appelant le fait avec la
+            # liste réelle. On renvoie le nombre et la raison.
+            return "unite", f"{prefixe}-{n:03d}", f"« {m.group(0)} »"
+
+    # 4. une unité est nommée sans numéro
+    for mot, prefixe in UNITES.items():
+        if re.search(rf"\b{mot}\b", t):
+            return "autre", prefixe, f"« {mot} » sans numero"
+
+    return "courant", "", "rien de dit"
+
+
+EPREUVES = [
+    ("Ok, si tu peux me mettre ca dans l'episode 9, vas-y.", "unite", "ep-009"),
+    ("encore dans l'Opus 3, je trouve ca vraiment bien le travail", "unite", "op-003"),
+    ("mets ca dans l'episode neuf s'il te plait", "unite", "ep-009"),
+    ("j'aimerais ouvrir un nouvel episode pour ca", "neuf", "ep"),
+    ("pars un opus avec ce que je viens de jouer", "neuf", "op"),
+    ("je vais avoir envie que tu ajoutes un instrument", "courant", ""),
+    ("mets ca dans le journal 2", "unite", "jr-002"),
+]
+
+if __name__ == "__main__":
+    if "--epreuve" in sys.argv:
+        rate = 0
+        for texte, g_att, v_att in EPREUVES:
+            g, v, r = lire(texte)
+            ok = (g == g_att and v == v_att)
+            rate += 0 if ok else 1
+            print(f"  {'✓' if ok else '✗'} {g:8s} {v or '-':8s} {r:34s} {texte[:44]}")
+        print(f"\n  {len(EPREUVES)-rate}/{len(EPREUVES)} épreuves passées")
+        sys.exit(1 if rate else 0)
+
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if not args:
+        print(__doc__.strip()); sys.exit(2)
+    texte = open(args[0], encoding="utf-8", errors="replace").read()
+    genre, valeur, raison = lire(texte)
+    print(f"{genre}\t{valeur}\t{raison}")
+    sys.exit(0 if genre in ("unite", "neuf") else 1)
