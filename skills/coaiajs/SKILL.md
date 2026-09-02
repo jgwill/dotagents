@@ -1,107 +1,182 @@
 ---
 name: coaiajs
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - langfuse
   - prompts
+  - tracing
+  - observations
   - coaia
   - stc
   - pipeline
 description: >
-  Interface to coaiajs CLI for Langfuse prompt management, STC narrative operations,
-  and pipeline orchestration. Enables retrieving, creating, and pushing prompts
-  from compositions to Langfuse, and linking prompt URLs back to composition.json.
+  Interface to the current coaiajs CLI for Langfuse v4/OpenTelemetry tracing,
+  prompt management, STC narrative operations, and pipeline orchestration.
+  Supports project-scoped credential routing, immutable root/child observations,
+  prompt versioning, datasets, scores, comments, and media workflows.
 ---
 
-# CoAIA.js Skill — Langfuse Prompt Bridge
+# CoAIA.js Skill — Langfuse, Narrative, and Pipeline Bridge
 
 ## Purpose
 
-Bridge between composition recordings, structural tension charts, and Langfuse prompt management.
-Enables a flow where `composition.json` can be pushed as a new Langfuse prompt with its transcriptions,
-and the resulting prompt URL is stored back in the composition metadata.
+Use `coaia` to connect composition and ceremony work with Langfuse prompts and
+observation traces, while retaining structural-tension and pipeline operations.
+The current trace model is a group of immutable OpenTelemetry observations that
+share one `traceId`; the root observation is the trace container.
 
-## Tool: `coaia` (v0.1.3+)
+## Runtime and freshness
 
-Installed at: `$PREFIX/bin/coaia`
-Config: `~/.coaia/.env` (Langfuse credentials, Redis, etc.)
-
-## Langfuse Credential Sets
-
-coaiajs loads from `~/.coaia/.env`. Multiple Langfuse projects are configured:
-
-| Label | Env Prefix | Project Use |
-|-------|-----------|-------------|
-| Ceremony/ilex | `LANGFUSE_` (lines 84-86) | Ceremony prompts, miadi-stcbot |
-| Aetherial | `LANGFUSE_` (lines 108-111) | Tracing, aetherial integration |
-| Engineering | `ENG_LANGFUSE_` | Engineering world prompts |
-| Ceremony alt | `CEREMONY_LANGFUSE_` | Ceremony-specific keys |
-| Story | `STORY_LANGFUSE_` | Story world prompts |
-
-**Note:** Last `LANGFUSE_SECRET_KEY`/`LANGFUSE_PUBLIC_KEY` in the file wins for coaia CLI.
-The Ceremony/ilex keys (project `cmkgk10zy009tad077uc42ixf`) are overridden by Aetherial keys.
-For prompts in the Ceremony project, use direct API calls with Ceremony credentials.
-
-## Core Commands
-
-### Prompt Management
 ```bash
-coaia fuse prompts list                    # List all prompts
-coaia fuse prompts get <name>              # Get prompt (text type only — chat type has bug)
-coaia fuse prompts get <name> --version N  # Get specific version
-coaia fuse prompts create                  # Create new prompt
+command -v coaia
+coaia --version
+npm view coaiajs version
 ```
 
-### Other Operations
+The current tested release is `coaiajs 0.4.2`. Upgrade only when the registry is
+newer:
+
 ```bash
-coaia fuse sessions          # Session management
-coaia fuse traces            # Trace operations
-coaia fuse scores            # Score management
-coaia fuse datasets          # Dataset management
-coaia fuse comments          # Comment operations
-coaia narrative              # STC narrative operations
-coaia pde                    # Prompt Decomposition Engine
-coaia plan                   # Structural tension plans
-coaia gh                     # GitHub operations
+npm install -g coaiajs@latest
+coaia --version
 ```
 
-## Known Issues
+Global options must precede the command: `--env <path>`, `--json`, `--no-color`,
+`-M/--memory-path <path>`, and `-V/--version`.
 
-- `coaia fuse prompts get` fails for `chat`-type prompts with error:
-  `Prompt not found with label '[object Object]'`
-  **Workaround:** Use direct Langfuse API with node.js:
-  ```javascript
-  const https = require('https');
-  const pk = '<public_key>';
-  const sk = '<secret_key>';
-  const auth = Buffer.from(pk + ':' + sk).toString('base64');
-  https.get({
-    hostname: 'cloud.langfuse.com',
-    path: '/api/public/v2/prompts/<name>',
-    headers: { 'Authorization': 'Basic ' + auth }
-  }, handler);
-  ```
+## Credential and project routing
 
-## Composition-to-Prompt Flow (Planned Integration)
+Configuration priority is process environment > dotenv file > `coaia.json` >
+defaults. Langfuse reads only the unprefixed names:
 
-### Vision
-1. A `composition.json` from a recording session contains transcription and metadata
-2. `coaia fuse prompts create` pushes it as a new Langfuse prompt
-3. The returned prompt URL is stored in `composition.json` under `langfuse_prompt_url`
-4. This enables relaxed prompt drafting from composition recordings
-5. An STC-inspired routing system (like stcbot) can monitor for new compositions
-   and auto-create prompts, linking them bidirectionally
+- `LANGFUSE_PUBLIC_KEY`
+- `LANGFUSE_SECRET_KEY`
+- `LANGFUSE_BASE_URL` (or `LANGFUSE_HOST`)
 
-### STC Bot Integration
-When `@stc`, `@stcgoal`, `@stcissue`, `@stcmastery`, or `@stckin` mentions are detected:
-- If tmux session `stcbot` exists, route the mention there
-- The bot triages into memory keys for action
-- Similar routing could trigger `coaia fuse prompts create` for composition-born prompts
+`~/.coaia/.env` also carries named project profiles such as `ENG_LANGFUSE_*`,
+`CEREMONY_LANGFUSE_*`, and `STORY_LANGFUSE_*`. Those prefixes are not selected
+automatically; remap the intended profile into the standard names inside a
+subshell. Never print credentials or put them in command arguments.
 
-## When to Use
+```bash
+(
+  set -a
+  . ~/.coaia/.env
+  set +a
+  export LANGFUSE_PUBLIC_KEY="$CEREMONY_LANGFUSE_PUBLIC_KEY"
+  export LANGFUSE_SECRET_KEY="$CEREMONY_LANGFUSE_SECRET_KEY"
+  export LANGFUSE_BASE_URL="$CEREMONY_LANGFUSE_BASE_URL"
+  coaia --json fuse projects
+)
+```
 
-- Retrieving prompts from Langfuse for reuse in agent sessions
-- Pushing composition transcriptions as versioned Langfuse prompts
-- Linking prompt evolution to chronicle episodes
-- Managing STC narrative state through coaia CLI
-- Debugging Langfuse credential routing across projects
+Always verify the returned project before writing. Ceremony project ID:
+`cmkgk10zy009tad077uc42ixf`.
+
+## Prompt management
+
+```bash
+coaia fuse prompts list [--page N] [--limit N]
+coaia fuse prompts get <name> [--version N] [--label LABEL]
+coaia --json fuse prompts get <name>
+coaia fuse prompts create \
+  --name <name> --prompt <text> --type text \
+  --labels production,latest --tags ceremony \
+  --commit-message "why this version exists" [--config '<json>']
+```
+
+Prompt retrieval supports both text and chat prompts. Markdown is the default
+for `get`; use global `--json` when machine-readable output is required. Reusing
+a prompt name creates a new version.
+
+## Langfuse v4 trace and observation workflow
+
+`coaiajs` uses the scoped Langfuse JS SDK v5 and exports Langfuse-v4-compatible
+OpenTelemetry spans. Writes go to `/api/public/otel/v1/traces`; reads use
+Observations API v2. Legacy mutable trace output patching is not supported.
+
+### 1. Create the root observation container
+
+```bash
+coaia --json fuse traces create \
+  --name <trace-name> \
+  [--trace-id <32-hex-or-uuid>] \
+  [--session-id <session>] [--user-id <user>] \
+  [--input '<json-or-text>'] [--output '<json-or-text>'] \
+  [--metadata '<json-object>'] [--tags tag-a,tag-b] \
+  [--version <version>] [--environment <environment>]
+```
+
+Preserve both returned values:
+
+- `traceId`: reused by every observation in the trace
+- `rootObservationId`: passed as `--parent-id` for direct children
+
+### 2. Append a child observation container
+
+```bash
+coaia --json fuse traces add-observation \
+  --trace-id <trace-id> \
+  --parent-id <root-or-parent-observation-id> \
+  --name <observation-name> \
+  --type event \
+  [--input '<json-or-text>'] [--output '<json-or-text>'] \
+  [--metadata '<json-object>'] \
+  [--trace-name <trace-name>] [--session-id <session>] \
+  [--user-id <user>] [--tags tag-a,tag-b] [--model <model>]
+```
+
+Allowed types are `span`, `event`, and `generation`. Each export creates a new,
+complete, immutable observation. To correct or extend an observation, append a
+new child rather than retrying an existing ID. Propagate trace name, session,
+user, and tags on children when available.
+
+For a batch, provide a JSON array to:
+
+```bash
+coaia --json fuse traces add-observations --trace-id <trace-id> --file observations.json
+```
+
+### 3. Verify the hierarchy
+
+```bash
+coaia fuse traces trace-view <trace-id>
+coaia --json fuse traces get-observation <observation-id>
+coaia fuse traces list [--session-id ID] [--name NAME] [--tags a,b]
+coaia fuse traces session-view <session-id>
+```
+
+OpenTelemetry writes are flushed immediately by the CLI, but reads can be
+eventually consistent; retry verification briefly before treating a missing
+observation as a failure.
+
+## Other operations
+
+```bash
+coaia fuse datasets
+coaia fuse dataset-items
+coaia fuse scores
+coaia fuse score-configs
+coaia fuse comments
+coaia fuse media
+coaia narrative
+coaia pde
+coaia plan
+coaia pipeline
+coaia gh
+```
+
+The MCP server is `coaiajs-mcp`. Standard mode exposes Langfuse tracing plus
+narrative, PDE, and planning tools. The repository also provides focused Custom
+GPT OpenAPI actions for root/child observation export and a companion media
+proxy for complete file upload workflows.
+
+## Relational operating rules
+
+- Verify the Langfuse project before every write.
+- Record prompt URLs, prompt names, and relationship semantics in structured
+  input/metadata rather than relying on prose alone.
+- Make lineage explicit: parent prompt, dependent prompt, and relation (`uses`,
+  `revises`, `derived-from`, and so on).
+- Treat trace and observation IDs as receipts; return them after verification.
+- Never expose API keys, Basic Authorization values, or dotenv contents.
