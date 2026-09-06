@@ -411,3 +411,83 @@ At the snapshot, the Chronicle had pre-existing live JSONL store changes and an 
 - **Verified:** authenticated retrieval reports `manual-import` version 2 and is byte-identical to the Chronicle source at SHA-256 `bc05ee04789f43a52c2439d7cce4ca16389b3f6bb036634b8ceb3f486ff09b2f`; public review and Wheel node return HTTP 200; both new exact edge types exist; 19 Review-client tests pass. Every ceremony dialogue turn and report aspect is under 55 words, Chronicle `main` has zero unpushed commits, and the live Episode Recorder note API returns HTTP 200 with the exact 922-word dialogue.
 - **Failed or deferred:** Episode 094 remains explicitly manifest-missing. The edge API still lacks a first-class prose-intention field and permits only one edge per ordered node pair. Physical listening remains William's acceptance gesture; no shell test can establish how the selected voice feels when heard.
 - **Next safe move:** select Episode 345 ceremony `279972a5-f512-4d81-b74a-91a6bf651531` in the recorder and listen to `notes.md`; platform work can then implement an idempotent Review-to-Wheel helper and UI projection without changing these witness receipts.
+
+## 2026-09-01 — binscripts environment layering on Ilex
+
+- **Found:** the failing shell retained the desktop-era `MIADI_INFRA_BINSCRIPTS_DIR=/opt/binscripts`; fresh Ilex shells already source `~/.bash_env` and resolve `/data/data/com.termux/files/opt/binscripts/load.sh`. The shared loader remains desktop-compatible by preferring `/opt/binscripts` when present.
+- **Changed:** preserved Ilex's host override for `MIADI_MIA_WORKSPACE_ROOT` in gmtermux commit `d92942a`, pushed to fork branch `refactor/cross-importing-modules-260805`. The portable binscripts loader is independently pushed at `jgwill/binscripts` commit `9176539`.
+- **Verified:** shell syntax and the clean-shell load → local-override sequence pass; gmtermux local/fork heads agree at `d92942a`, and binscripts local/remote `main` agree at `9176539`.
+- **Failed or deferred:** already-running shells keep their old exported path until the local override is sourced again; no broader shell-loader refactor was attempted.
+- **Next safe move:** in a stale shell run `. "$HOME/.bash_env"`, then `. "$MIADI_INFRA_BINSCRIPTS_DIR/load.sh"`.
+
+## 2026-09-01 — fullscreen Episode ceremony recorder recovered
+
+- **Found:** the Episode Recorder owned an active 1,699-second take, so status recovery correctly marked recording live but disabled every ceremony-local button after browser state lost its originating card.
+- **Changed:** safely stopped and registered `260901213839.m4a` in the Episode inbox; gmtermux commit `85cd89f` lets the active fullscreen ceremony reclaim an Episode-owned recording as `Stop & send`. The commit is pushed on `refactor/cross-importing-modules-260805`, and the full portal profile was restarted.
+- **Verified:** focused Episode/fullscreen tests pass 17/17; live Episode 345 serves the recovery logic and `Record reply`, excludes composition UI, and reports an idle recorder. All managed ports, Medicine Wheel, and Forgewright are healthy.
+- **Failed or deferred:** no physical browser tap was performed; the preserved 28-minute inbox take was not transcribed or assigned to an episode without William's instruction.
+- **Next safe move:** reload the fullscreen ceremony note and use `Record reply` → `Stop & send`; if desired, review inbox take `260901213839.m4a` separately.
+
+## 2026-09-01 — stable compact ceremony note status
+
+- **Found:** the visible saved-path result changed the editor's height and repeated a long ceremony UUID beneath the controls.
+- **Changed:** gmtermux commit `f64ac8f` replaces that line with a fixed 84×28 `notes.md` badge beside `Working notes`; its dot is yellow while pending, green when saved, and red on error. Detailed status remains in accessible labels without occupying layout. The commit is pushed and only Episode Recorder `:3768` was restarted.
+- **Verified:** focused Episode/fullscreen tests pass 17/17; the live Episode 345 page serves the fixed badge, contains no visible saved-path line or composition UI, and the recorder is idle. All managed service ports listen.
+- **Failed or deferred:** GitHub `ls-remote` timed out once after the successful push; local `HEAD` and the updated origin-tracking ref both equal `f64ac8f` with zero divergence.
+- **Next safe move:** reload the ceremony note and confirm the compact status remains still while editing and saving on Android.
+
+## 2026-09-02 — reusable Episode FileBrowser phases 1 and 2 deployed
+
+- **Found:** Episode 339 held 23 grouped capture bundles and 15 ordinary supported files, but the 120-file cap was consumed before grouped capture/ceremony paths were filtered, leaving only one visible file.
+- **Changed:** opened and closed `miadisabelle/gmtermux#82`. Phase 1 commit `f4956d7` fixes pre-cap filtering and adds reusable FileBrowser JS/CSS with mobile search, identity, text browsing, and media playback. Phase 2 commit `ef7ddee` adds `marked@18.0.11`, `sanitize-html@2.17.0`, sanitized Markdown Preview, Source/Edit modes, atomic SHA-256 revision-guarded saves, JSON validation, draft-discard confirmation, and HTTP 409 conflict preservation. Both commits are pushed; only Episode Recorder `:3768` was restarted.
+- **Verified:** focused tests pass 28/28, including isolated HTTP successful save and stale-write rejection. Live Episode 339 exposes 15 browser items, rich editable Markdown, byte-identical client assets, and no composition UI. A live stale-write probe returned 409 while the target SHA-256 remained unchanged; all managed ports listen.
+- **Failed or deferred:** the broad suite progressed without a failure but exceeded its 240-second harness timeout. `npm install --ignore-scripts` reported 14 existing/current audit findings (1 low, 4 moderate, 9 high); no automatic audit mutation was attempted. No real Episode file content was changed during live acceptance.
+- **Next safe move:** human-open one Episode 339 Markdown file, compare Preview and Source, make a deliberate small Edit, and Save file; the Chronicle working tree will retain that disk edit for its owning publication lane.
+
+## 2026-09-02 — reusable Episode FileBrowser phase 1
+
+- **Found:** Episode 339 had 23 grouped captures and 15 ordinary supported artefacts, but its 120-file traversal cap was consumed by capture and ceremony files before those dedicated-surface files were filtered, leaving only one ordinary file visible.
+- **Changed:** opened `miadisabelle/gmtermux#82`; commit `f4956d7` filters dedicated-surface files before the cap and adds reusable `web/lib/file-browser.{js,css}` with mobile search, stable identity, safe source viewing, and media playback. It is pushed on `refactor/cross-importing-modules-260805`; only Episode Recorder `:3768` was restarted.
+- **Verified:** focused tests pass 21/21. Live Episode 339 reports 23 grouped captures plus all 15 ordinary files; its page renders 15 browser items, reads `developmental-editor-criteria.md` over HTTP 200, serves byte-identical FileBrowser assets, excludes composition UI, and remains idle. All managed ports listen.
+- **Failed or deferred:** rich Markdown and file editing remain a moderate phase 2. The issue records the recommended sanitized renderer plus atomic hash/mtime-guarded writes so concurrent Chronicle edits cannot be overwritten silently.
+- **Next safe move:** browse Episode 339 files on mobile; then implement phase 2 through the reusable FileBrowser seam without weakening path containment or Chronicle concurrency boundaries.
+
+## 2026-09-01 — mobile ceremony actions moved above the note
+
+- **Found:** the fullscreen ceremony actions followed the expanding textarea, leaving Save and Record beneath Android's keyboard; the fullscreen container also added 16px beyond any safe-area inset at the bottom.
+- **Changed:** gmtermux commit `5e20771` moves Save notes and Record reply above the textarea in both views, compacts the fullscreen toolbar, and removes the additive bottom gutter. It is pushed on `refactor/cross-importing-modules-260805`; only the exact Episode Recorder pane on `:3768` was restarted.
+- **Verified:** focused tests pass 17/17; the live Episode 345 HTML places actions before the note field, serves the compact fullscreen rules, excludes composition UI, and reports idle. All managed ports remain listening, and local/fork branch heads agree.
+- **Failed or deferred:** no physical keyboard screenshot or tap was available from the shell.
+- **Next safe move:** reload the open ceremony page so the browser receives `5e20771`, then confirm Save notes and Record reply remain visible above the keyboard while typing.
+
+## 2026-09-03 — Chronicle Medicine Wheel data separated from episode history
+
+- **Found:** co-locating operational JSONL under the Chronicle invited direct commits. A long-lived watchdog also retained its pre-cutover path: the newly loaded status command reported 292 destination edges while the old server still served 191 source edges.
+- **Changed:** created dedicated checkout `/data/data/com.termux/files/srv/miadi/mw-data`, origin `mia@gaia.tail3b11eb.ts.net:/srv/git/jgwill/mw-data.git`, with named store `miadi-chronicle/store`. Pushed base import `d352ee7`, provider repair `c5999ed`, and migration receipt `7c3765d`; gmtermux guards/docs are `02bdb37`, RISE spec `f88837a`; Chronicle removal is `e58760b`. Closed `miadisabelle/gmtermux#83`.
+- **Verified:** after replacing both service and watchdog, the actual Medicine Wheel process carries the dedicated `MW_DATA_DIR`; API read-back returns 205 nodes and 292 edges, all JSONL parses with zero duplicate edge keys or dangling endpoints, Forgewright is healthy, and both process IDs stayed stable through a full watchdog interval. All three repository heads equal their remotes; the bare data origin's HEAD is `main`; Chronicle `.mw/` is absent and repository-ignored.
+- **Failed or deferred:** the first post-edit read-back honestly failed because the old watchdog recreated the old path; the controlled stop plus fresh daemon corrected it. The provider's ignored timestamped backup remains locally available, while Git commit `d352ee7` is the durable frozen rollback point.
+- **Next safe move:** send normal graph mutations through `http://127.0.0.1:8040`; when API writes dirty the data checkout, validate and commit named JSONL files there. Use `~/scripts/mw-fw-upgrade.sh` and `~/bin/ensure-miadi-workbench.sh`, never recreate a Chronicle-local store.
+
+## 2026-09-04 — Pi hook captures given private runtime custody
+
+- **Found:** Pi's Android fallback had written one capture under the gmtermux home worktree, while an older Chronicle Sessions checkout held dozens of untracked raw sessions; the clean private `repos/miadisabelle/chronicle-sessions` checkout is better kept as a selective publication boundary.
+- **Changed:** created `/data/data/com.termux/files/srv/miadi/sessions` at mode `0700`; added tracked and live `MIADI_SESSION_DIR="$MIADI_WORK_DIR/srv/miadi/sessions"`; opened and closed `miadisabelle/gmtermux#84`; pushed fork `main` commit `57e8528` with the environment line and `rispecs/pi-session-capture/` packet.
+- **Verified:** a no-model Pi RPC lifecycle created session `01a06dc0-7e39-7fa7-8572-329ac2d0675f` with `session_start`/`session_shutdown`, directory mode `0700`, five valid JSON files at `0600`, unchanged native Pi session count, and a still-clean publication checkout. Live pre-existing `.bash_env` content and both `.bash_aliases` files were hash-preserved; gmtermux local/fork `main` agree.
+- **Failed or deferred:** the first smoke invocation quoted its extension path literally and failed before loading; the corrected invocation passed. Existing `$HOME/_sessiondata`, the older dirty checkout, multi-agent legacy aliases, retention policy, and any promotion helper remain untouched for separate review.
+- **Next safe move:** start Pi normally from a fresh shell; user-global settings now load the event-capture extension without CLI `-e`. Promote a session to the private Chronicle Sessions checkout only after human review and named-file selection.
+
+## 2026-09-04 — canonical Miadi work-root vocabulary corrected
+
+- **Found:** active binscripts already defines `MIADI_WORK_DIR`; the first gmtermux #84 commit had incorrectly used a retired longer work-root name in `.bash_env` and the RISE packet.
+- **Changed:** reopened fork issue #84; replaced the retired name throughout tracked and live `.bash_env`, including the session, repository, and wiki derivations; revised the RISE contract to require the canonical variable without a compatibility alias.
+- **Verified:** a fresh shell resolves `MIADI_WORK_DIR=/data/data/com.termux/files`, the session/repository/wiki derivatives agree, and no retired-name reference remains in active gmtermux or live shell configuration. `.bash_aliases` remains unchanged.
+- **Failed or deferred:** immutable Git history still witnesses the corrected first commit; it will not be rewritten. No unrelated repository or historical session capture is in scope.
+- **Next safe move:** use only `MIADI_WORK_DIR` in future host configuration and documentation; treat any newly observed retired-name use in active code as migration work rather than adding an alias.
+
+## 2026-09-04 — Pi global capture activated and HOME consolidated
+
+- **Found:** a home extension symlink loaded the TypeScript file but made its relative sanitizer lookup home-relative, so capture failed open. The owning binscripts issue #160 already specified user-global settings registration as the intended installation.
+- **Changed:** removed the symlink; preserved all existing Pi settings while adding the direct binscripts extension path once; pushed binscripts fix `834e7c3` to canonicalize real module paths; pushed gmtermux correction `1730e81`; closed issues `jgwill/binscripts#160` and `miadisabelle/gmtermux#84`.
+- **Verified:** ordinary Pi startup without CLI `-e` captured a clean two-event lifecycle; direct-settings and isolated-symlink smokes both passed after the fix with `0700`/`0600` custody and no stderr. Authoring, live HOME, and fork gmtermux `main` agree at `1730e81`; binscripts local/remote `main` agree at `834e7c3`.
+- **Failed or deferred:** the pre-fix symlink smoke failed exactly at the missing home-relative sanitizer and wrote no capture for that session. Existing historical session roots, retention policy, and selective-promotion tooling remain separate work.
+- **Next safe move:** open a fresh shell and run ordinary `pi`; if another Pi instance uses a distinct `PI_CODING_AGENT_DIR`, add the same resolved binscripts path to that instance's user-global `settings.json`.
