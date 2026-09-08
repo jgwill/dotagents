@@ -1,5 +1,5 @@
 ---
-name: nested-claude-architect
+name: nested-claude-md
 description: >
   Create or update nested/subdirectory CLAUDE.md files. These are small,
   focused files inside folders (frontend/, backend/, tests/, etc.) that
@@ -59,14 +59,14 @@ Both add domain-specific context. Choose based on the trigger:
 | **Path-scoped rules** `.claude/rules/*.md` | The rule is about a file pattern (e.g., all `*.test.ts` files) or a convention that doesn't need context, just enforcement |
 
 Path-scoped rules use YAML frontmatter with glob patterns:
-\`\`\`yaml
+```yaml
 ---
 paths:
   - "**/*.test.ts"
   - "**/*.spec.ts"
 ---
 Always use vitest. Mock external APIs. Never test implementation details.
-\`\`\`
+```
 
 When a folder needs BOTH contextual guidance AND pattern rules, use a
 nested CLAUDE.md for the guidance and `.claude/rules/` for the enforcement.
@@ -88,7 +88,7 @@ generalize/deduplicate/expire/promote rules as the root skill.
 
 ## The Template
 
-\`\`\`markdown
+```markdown
 # [Domain Name]
 
 [One sentence: what this part of the codebase does and what tech it uses.]
@@ -126,7 +126,7 @@ things that were deliberately chosen.]
 | Mistake | Fix |
 |---------|-----|
 | (real mistakes only) | |
-\`\`\`
+```
 
 **50-100 lines max.** If it's longer, you're probably repeating root info.
 
