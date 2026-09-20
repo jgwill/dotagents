@@ -1,7 +1,7 @@
 ---
 name: facebook-page-stewardship
 description: "Use when studying, drafting, or publishing Facebook Page content through a dedicated authenticated Chrome/CDP session, especially when posts derive from evolving Miadi Reviews. Preserve each Page's observed voice, turn review changes into subjective inquiry and contribution invitations, detect live composer capabilities, require an exact preview and explicit approval before publication, and verify the resulting post URL."
-version: 1.0.0
+version: 1.1.0
 author: Miadi
 license: MIT
 metadata:
@@ -194,6 +194,31 @@ Before any publication, show one reviewable block containing:
 Ask for approval of the exact block. A general request to develop content is not approval to press `Next`, `Post`, `Publish`, or an equivalent final action.
 
 If the user revises any wording, show the final revised text again. Approval attaches to that exact version.
+
+### File-Based Approval Lane
+
+Use a durable file as the approval handoff rather than relying only on chat history.
+
+```text
+~/.kherix/facebook/<page-slug>/approvals/
+├── pending/YYYY-MM-DD-<post-slug>.md
+├── approved/YYYY-MM-DD-<post-slug>.md
+└── published/YYYY-MM-DD-<post-slug>.md
+```
+
+1. Write the complete preview to `pending/`. Include target Page, exact post text, source basis, links, media, participation mechanism, privacy, AI-label choice, and `NOT PUBLISHED` status.
+2. Give the user the exact path and deliver the file directly when the channel supports attachments.
+3. Treat approval as applying to the exact contents of that file. Record the approval in the file and move it to `approved/` before opening the Facebook composer.
+4. If any substantive wording, link, media, target, privacy, or participation mechanism changes, create a new pending revision such as `-v2.md`; do not silently edit an approved file.
+5. After verified publication, add the Facebook permalink and publication time, change the status to `PUBLISHED`, and move the artifact to `published/`.
+6. If publication fails, leave the artifact in `approved/` with the blocker recorded. Never mark or move it as published without a verified timeline item and permalink.
+
+The file's lifecycle is the publication state machine:
+
+```text
+pending → approved → published
+            ↘ blocked (remain approved with evidence)
+```
 
 ## Publishing Workflow
 
