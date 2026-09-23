@@ -1,0 +1,5 @@
+# GitHub Pages (Jekyll) settings for docs.dotagents.jgwill.com
+# The vendored Vercel skills hold JSX such as `{{ tabBarIcon: ... }}`, which Liquid
+# reads as broken tags and fails the build. They stay in the repo, out of the site.
+exclude:
+  - skills/vercel-*
