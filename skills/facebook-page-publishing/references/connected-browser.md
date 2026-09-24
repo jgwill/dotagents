@@ -51,6 +51,33 @@ print(data.get('Protocol-Version'))
 PY
 ```
 
+## Local-image attachment in an existing Page post
+
+Verified 2026-09-24: open the exact permalink → Actions → Edit post → Photo/video. Inspect the edit dialog's `input[type=file]` elements: the media input may be hidden and absent from accessibility snapshots. `browser_cdp` is stateless here, so a `Runtime.evaluate` `objectId` cannot be reused in a later `DOM.setFileInputFiles` call. Use **one** stateful connection to the already-running local Chrome tab, after confirming the file and post target:
+
+```python
+import asyncio, json, requests, websockets
+
+async def attach(local_image, post_url_fragment, file_input_index):
+    tabs = requests.get('http://127.0.0.1:9222/json/list', timeout=5).json()
+    tab = next(t for t in tabs if t.get('type') == 'page' and post_url_fragment in t.get('url', ''))
+    async with websockets.connect(tab['webSocketDebuggerUrl'], origin=None, max_size=2**21) as ws:
+        async def rpc(i, method, params):
+            await ws.send(json.dumps({'id': i, 'method': method, 'params': params}))
+            while True:
+                msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=15))
+                if msg.get('id') == i:
+                    if 'error' in msg: raise RuntimeError(msg['error'])
+                    return msg['result']
+        expr = f'document.querySelectorAll(\'[role="dialog"] input[type="file"]\')[{file_input_index}]'
+        result = await rpc(1, 'Runtime.evaluate', {'expression': expr, 'returnByValue': False})
+        await rpc(2, 'DOM.setFileInputFiles', {'files': [local_image], 'objectId': result['result']['objectId']})
+
+# asyncio.run(attach('/absolute/approved-image.jpg', '/Guillaumecoder/posts/<id>', 1))
+```
+
+The example index `1` matched the multiple-image input in one Edit post dialog; inspect `accept` and `multiple` before every use rather than assuming fixed indices. Verify the media preview and unchanged text, then Next → check Page, Public, Boost off, and AI label as appropriate → Save. Reload the **same permalink** and inspect the rendered image and text. CDP must remain bound to loopback; never read cookies/tokens.
+
 ## User handoff
 
 1. Open the dedicated Chrome window.
