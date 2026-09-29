@@ -207,7 +207,7 @@ Use a durable file as the approval handoff rather than relying only on chat hist
 ```
 
 1. Write the complete preview to `pending/`. Include target Page, exact post text, source basis, links, media, participation mechanism, privacy, AI-label choice, and `NOT PUBLISHED` status.
-2. Give the user the exact path and deliver the file directly when the channel supports attachments.
+2. Present one human-facing preview in the conversation or through one directly openable review page: actual image (or explicitly none), exact Page copy, episode/source link, and a plain status such as draft/not posted. The file is backstage custody, not the required user interface. Do not make Guillaume navigate folders or Markdown, interpret test logs, or answer separate mechanical approval prompts. Accept ordinary-language revisions and approval of the displayed version; a timeout is not consent. After approval, handle the authorized publishing/archive work and return the verified live post link. Offer a file path only as optional technical detail.
 3. Treat approval as applying to the exact contents of that file. Record the approval in the file and move it to `approved/` before opening the Facebook composer.
 4. If any substantive wording, link, media, target, privacy, or participation mechanism changes, create a new pending revision such as `-v2.md`; do not silently edit an approved file.
 5. After verified publication, add the Facebook permalink and publication time, change the status to `PUBLISHED`, and move the artifact to `published/`.
