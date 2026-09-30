@@ -2,6 +2,8 @@
 
 Tracked example: `miadisabelle/kherix-hermeneia#70`. The current case workspace is `/srv/miadi/episodes/miadi-chronicle/_staging_for_new_episodes/miadi-event-broker-inquiry-hub/`. This reference is a reusable method, not a claim that Kafka, Cloudflare Queues, Hookdeck, or NATS has been selected for Miadi, nor permission to publish.
 
+The early-intent stage below predates episode 548 and its later attached reviews; re-read current episode sources before using its status claims. Since Guillaume's 2026-09-30 decisions, keep the post and image in its Chronicle episode (or staging hub before birth), and follow the main skill's Page-circle lane. Ask once for the post: the current facilitator's witness on the exact version turn is the publication gate. Files, renders, verification and the agent's own vessel commits need no separate approval. The former home approval folders are historical only.
+
 ## An early intent post is allowed
 
 Before any candidate videos or reviews exist, a draft may invite people to help shape the inquiry. Its evidence is the existing intention, episode 547/review v3, and the verified state of the relevant packages and staging notes—not claims about an unreviewed vendor demonstration. Name Kafka, Cloudflare Queues, Hookdeck, and possible NATS as paths to investigate, not equivalent finalists. Say that no broker or shared trading infrastructure has been chosen and that a new Chronicle episode is only a possibility. Ask which *event, failure, and receipt* people would want to inspect; do not ask them to vote on a vendor before orientation. Mark the draft `NOT PUBLISHED` and obtain approval of its exact final form before an outward write.

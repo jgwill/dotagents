@@ -1,7 +1,7 @@
 ---
 name: miadi-facebook-page-stewardship
-description: "Use when studying, drafting, or publishing Facebook Page content through a dedicated authenticated Chrome/CDP session, especially when posts derive from evolving Miadi Reviews. Preserve each Page's observed voice, turn review changes into subjective inquiry and contribution invitations, detect live composer capabilities, require an exact preview and explicit approval before publication, and verify the resulting post URL."
-version: 1.1.0
+description: "Steward Chronicle-owned Facebook Page drafts through a talking circle. Preserve Page voice and source evidence, present one exact post turn, require the circle facilitator's witness before publication, and verify the resulting post URL."
+version: 1.2.0
 author: Miadi
 license: MIT
 metadata:
@@ -18,7 +18,7 @@ Operate a Facebook Page as an evolving public inquiry, not as a generic marketin
 
 Use a dedicated, user-authenticated Chrome profile over a localhost-only CDP endpoint. The human completes login and 2FA directly in Chrome. Never request, inspect, copy, or expose Facebook passwords, cookies, tokens, or profile artifacts.
 
-A draft is not permission to publish. Show the exact Page, text, links, media, audience mechanism, and privacy setting. Publish only after the user explicitly approves that preview.
+A draft is not permission to publish. For Guillaume Coder, the publication authority is the current circle facilitator's witness on the exact post turn, not a home-folder status or chat acknowledgment. Ask once, for the post only. Episode files, renders, verification, and commits/pushes of the drafting agent's own vessel work do not need a separate approval. This never grants authority over unrelated work. See the Chronicle and Page-circle lane below.
 
 ## When to Use
 
@@ -191,38 +191,40 @@ Before any publication, show one reviewable block containing:
 | AI label | Current setting; do not change unless requested or required for generated media |
 | Publish action | Explicitly state that no post exists yet |
 
-Ask for approval of the exact block. A general request to develop content is not approval to press `Next`, `Post`, `Publish`, or an equivalent final action.
+Put the exact block in one post turn in the Page circle. A general content request, a chat acknowledgment, a timeout, or a local file marked approved is not the facilitator's witness. If the facilitator requests changes, preserve the revision note and answer with a new complete version turn in the same ceremony; the new version needs its own witness.
 
-If the user revises any wording, show the final revised text again. Approval attaches to that exact version.
+### Chronicle and Page-circle lane
 
-### File-Based Approval Lane
+Authority: Guillaume's decisions D1–D5, 2026-09-30, in `packages/community/PAGE-POST-CIRCLE.md` in `jgwill/Miadi` (decision commit `9b9186fc`; refs `jgwill/Miadi#642`, `jgwill/dotagents#41`). Read the current contract before acting. On Gaia its inspected path is `/a/src/Miadi-18/packages/community/PAGE-POST-CIRCLE.md`.
 
-Use a durable file as the approval handoff rather than relying only on chat history.
-
-```text
-~/.kherix/facebook/<page-slug>/approvals/
-├── pending/YYYY-MM-DD-<post-slug>.md
-├── approved/YYYY-MM-DD-<post-slug>.md
-└── published/YYYY-MM-DD-<post-slug>.md
-```
-
-1. Write the complete preview to `pending/`. Include target Page, exact post text, source basis, links, media, participation mechanism, privacy, AI-label choice, and `NOT PUBLISHED` status.
-2. Present one human-facing preview in the conversation or through one directly openable review page: actual image (or explicitly none), exact Page copy, episode/source link, and a plain status such as draft/not posted. The file is backstage custody, not the required user interface. Do not make Guillaume navigate folders or Markdown, interpret test logs, or answer separate mechanical approval prompts. Accept ordinary-language revisions and approval of the displayed version; a timeout is not consent. After approval, handle the authorized publishing/archive work and return the verified live post link. Offer a file path only as optional technical detail.
-3. Treat approval as applying to the exact contents of that file. Record the approval in the file and move it to `approved/` before opening the Facebook composer.
-4. If any substantive wording, link, media, target, privacy, or participation mechanism changes, create a new pending revision such as `-v2.md`; do not silently edit an approved file.
-5. After verified publication, add the Facebook permalink and publication time, change the status to `PUBLISHED`, and move the artifact to `published/`.
-6. If publication fails, leave the artifact in `approved/` with the blocker recorded. Never mark or move it as published without a verified timeline item and permalink.
-
-The file's lifecycle is the publication state machine:
+Posts live in the Chronicle:
 
 ```text
-pending → approved → published
-            ↘ blocked (remain approved with evidence)
+<episode>/page-posts/guillaume-coder/YYYY-MM-DD-<post-slug>.md
+<episode>/page-posts/guillaume-coder/<versioned-image>
 ```
+
+Without an episode, keep the draft and image in its Chronicle staging hub. Do not mint an episode merely to obtain an approval folder. The former `~/.kherix/facebook/.../approvals/` lane is retired: move the live draft to the Chronicle, mark other pending files superseded or stale without deleting their history, and remove consumers' dependence on the home path. A file is custody, not an approval authority.
+
+For **Guillaume Coder Page**, use the existing circle `circle:1790787727155:2slscw`. Guillaume held its facilitator seat at the decision; re-read the live seat rather than hard-coding a person's name as permanent authority. Kherix is a member. Do not create a replacement circle. Another Page needs its own explicitly established circle and facilitator; do not infer a Tushell approval lane from this one.
+
+1. **Prepare and land the vessel.** Preserve the exact Page text, media, source links, audience and AI-label requirements in the episode, with a visible draft/not-posted state. Verify the image URL returns the intended bytes and record their hash. Commit and push only the named vessel files under Chronicle main-only rules. Do not ask the facilitator to approve file moves, renders, verification, or those commits.
+2. **Verify the speaker.** Use the drafting agent's own person token, never the facilitator's token or a shared writer token. `GET $MIADI_API_URL/api/identity/me` must identify that agent. Read the named circle and confirm membership and the grants needed to open/speak. Keep token values out of prose, commands printed to chat, committed files and receipts. A `witness` grant does not authorize the agent to approve its own proposal.
+3. **Open one ceremony.** `POST /api/circles/<circle-id>/ceremonies` with `{intention, type: "talking_circle", direction: "east", episode_path}`. `episode_path` is the exact episode directory name, not its number or absolute filesystem path. Use the named circle and the Miadi app front, not direct wheel writes. Preserve the returned ceremony id and land any ceremony note the app writes. If a request times out, inspect existing records before retrying; do not create duplicate ceremonies blindly.
+4. **Speak the exact post once.** `POST /api/ceremony/<ceremony-id>/turns` with `{title, said}`. One complete turn contains the target Page, exact post text, image URL (or explicit none), source links and relevant publishing settings. The person token determines the speaker. Keep contextual revision notes clearly outside the delimited Facebook body. Preserve the returned turn id and a hash of the exact proposed text/media. A file or PDF alone is not this turn.
+5. **Give one review door.** Present `/ceremony/<ceremony-id>` on the verified Miadi front. The actual image and exact text are the review surface; files and technical logs stay backstage. The facilitator can give revision turns and witness the chosen version from a phone. Do not create a second chat/file approval gate. A revision means a new version turn, not an overwrite of an already witnessed proposal.
+6. **Receive revision notes.** Read the ceremony turns through the API until delivery to the drafting agent's live pane is actually implemented and verified. Retain notes and version links for another agent to resume. Do not claim a Tide notification was delivered merely because it is planned, or install an unrequested monitor.
+7. **Verify the publication gate.** `GET /api/ceremony/<id>` must provide evidence that the exact intended turn carries a witness from the current circle facilitator. Another member's witness, a general witnessed boolean without identity, ceremony creation, or the agent's own grants are not substitutes. If the API cannot establish that specific witness, report the missing evidence and do not publish. Do not witness the proposal yourself.
+8. **Publish and receipt only when authorized.** Re-read the witnessed version and verify its image bytes have not changed before using the publishing workflow. After a real Facebook read-back, speak the verified permalink as a receipt turn and record it beside the canonical draft. On failure, retain the witnessed version and the blocker; never claim publication from a closed composer alone.
+9. **Leave closing to the facilitator.** Do not close the ceremony on the agent's initiative. The facilitator's closing and learnings belong to the episode through the platform's ceremony-note lane.
+
+The cross-agent `chronicle-episode` skill's S15 documents identity, opening, speaking, read-back and note landing. The inspected common entry is `~/.agents/skills/chronicle-episode/SKILL.md`; a different installed copy may be older, so verify the actual API before relying on it. The Miadi API front used for this decision is `https://miadi.tail3b11eb.ts.net`.
+
+State remains distinct: Chronicle draft → exact circle turn → facilitator witness on that turn → verified Facebook post and receipt. Committed files and an open ceremony are not publication approval.
 
 ## Publishing Workflow
 
-After explicit approval:
+After verifying the current facilitator's witness on the exact proposed version:
 
 1. Confirm the browser is still on the intended Page and switched into that Page identity.
 2. Re-open the composer and verify Page name, privacy, and available format.
@@ -233,7 +235,7 @@ After explicit approval:
 7. Click `Post` or `Publish` once.
 8. Wait for the composer to close and the new timeline item to appear.
 9. Open or inspect the new item and capture its permalink.
-10. Report the exact Page, resulting URL, visible publication state, and any deviation.
+10. Report the exact Page, resulting URL, visible publication state, and any deviation; speak the verified permalink as a receipt turn and retain it in the canonical episode draft. Leave the ceremony open for its facilitator.
 
 If the UI changes, the target is ambiguous, or verification fails, stop and report the blocker. Never invent a successful publication or URL.
 
@@ -261,7 +263,7 @@ For a comparative infrastructure inquiry—including an early intent post before
 6. **Generic engagement language.** Ask the audience to respond to a named engineering, ontological, relational, or implementation choice.
 7. **Premature funding language.** Ask about interest until a transparent support path exists.
 8. **Typing before approval.** Facebook can retain drafts; preview outside the composer first.
-9. **Approval drift.** Any substantive edit after approval requires a new preview.
+9. **Approval drift.** Any substantive change to a witnessed post requires a new complete version turn and the facilitator's witness on that version; never carry the old witness onto changed text or media.
 10. **Unverified success.** A closed modal is not proof of publication; capture the permalink.
 11. **Crossing Page voices.** Tushell and Guillaume Coder are related but distinct public presences.
 12. **Exposing authentication state.** Do not inspect profile files, cookies, local storage, request headers, or tokens.
@@ -277,9 +279,14 @@ For a comparative infrastructure inquiry—including an early intent post before
 - [ ] Contribution choices are concrete and non-coercive
 - [ ] Poll support checked live; fallback used honestly
 - [ ] Composer left empty before approval
-- [ ] Exact preview approved
+- [ ] Draft and image live in the Chronicle, not the retired home approval lane
+- [ ] Own person identity, named circle membership and facilitator seat verified
+- [ ] Exact post spoken as one version turn; revision notes remain available
+- [ ] Facilitator's witness verified on the exact turn before publication
+- [ ] No extra approval asked for episode files, renders, verification or own-vessel commits
 - [ ] Final composer text read back before publication
 - [ ] Resulting post visible and permalink captured
+- [ ] Publication receipt spoken; ceremony closing left to the facilitator
 - [ ] No credentials or browser secrets exposed
 
 ## Template
