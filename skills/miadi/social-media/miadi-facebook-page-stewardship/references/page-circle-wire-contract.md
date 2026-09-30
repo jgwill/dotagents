@@ -46,6 +46,12 @@ The production parser is `lib/page-post.ts::parsePagePost`. When checking a cons
 5. After speaking, read the ceremony again and require the returned turn ID, exact `prose`, and expected `speaker`. Preserve IDs, URLs and text/image hashes in the canonical post's receipt; never save credentials there.
 6. Creating or speaking does not witness or close anything. Do not call those endpoints as an incidental verification step. Read their actual state and leave later facilitator actions untouched.
 
+## Feedback continuity is not automatic delivery
+
+The Chronicle preserves the durable record; the circle is the visible conversation. On resuming work, read the same ceremony's turns, identify which proposal/version a facilitator's feedback addresses, and continue there. Do not ask the human to edit a private draft file, silently change a witnessed version, or treat a general comment as approval of a different version.
+
+Persisted feedback and delivery into a running agent are separate capabilities. Until the contract's guarded delivery is deployed and proven, use the authenticated ceremony read as the fallback; do not wait as if a notification were guaranteed. A read does not authorize terminal injection. Delivery must preserve the source speaker's authority, target-session binding, typing protections and the runtime's supported non-interrupting queue semantics. Coordinate with the existing delivery owner rather than starting a parallel watcher or cron job without an explicit request.
+
 ## Publication receipt: only after Facebook read-back
 
 ```text
