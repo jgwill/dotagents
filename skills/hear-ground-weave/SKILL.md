@@ -5,6 +5,8 @@ description: Load when coordinating live steering lanes back into the chronicle 
 
 # Hear-Ground-Weave — the coordination loop, sunwise
 
+STATUS: WATCH out , it might not be up to date and unrelated to manage the chronicle... we will revise this later
+
 Run live on gaia, 2026-08-08, around episode 317 (songbird). A remote lane on the android perch produced its own receipt line — `SONGBIRD-DEPLOY-OK 10b8620 200 302` — and the loop carried that line from a tmux pane, through verification on disk, into a registered inquiry weave with lineage edges, without answering a single staged prompt on the human's behalf.
 
 **Structural tension this loop resolves:** current reality is lanes holding evidence that only exists in scrollback — claims unverified, inquiries unresolved, receipts unread. Desired state is that evidence woven into the chronicle as registered inquiry content with lineage, proven at all five stages, with the human's questions still the human's. Each stage below resolves one increment of that tension; skipping one leaves it standing.
