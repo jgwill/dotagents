@@ -38,10 +38,10 @@ for l in *; do
   fi
 done
 
-# 2. Real directories that copy a repo skill or an archived skill
+# 2. Real directories that copy a repo skill
 for d in */; do
   n=${d%/}; [ -L "$n" ] && continue
-  if [ -d ~/.agents/skills/$n ] || [ -d ~/.agents/archived-skills/$n ]; then
+  if [ -f ~/.agents/skills/$n/SKILL.md ]; then
     echo "stale copy: $n"
     if [ "$DRY" = 0 ]; then mkdir -p "$trash"; mv "$n" "$trash/"; fi
   fi
@@ -50,11 +50,7 @@ done
 
 Stale copies go to `~/.claude/skills-trash/`, not to the bin. After step 2, rerun Install so the repo version takes the place of the copy.
 
-Known outdated entries:
-
-- `facebook-page-publishing` and `facebook-page-stewardship` are broken symlinks. The skills moved to `skills/miadi/social-media/` and carry the `miadi-` prefix now.
-- Every directory in [`archived-skills/`](archived-skills/) is retired, for example `miadi-lane-observation`, `rise-pde-session`, `mino-new-session`.
-- `deep-research` and `tushell-session-chronicle` copied into `~/.claude/skills/` differ from the versions here.
+`facebook-page-publishing` and `facebook-page-stewardship` moved to `skills/miadi/social-media/` and carry the `miadi-` prefix now. Symlinks under the old names are broken, and step 1 removes them.
 
 ## Skills
 
@@ -112,10 +108,12 @@ Known outdated entries:
 
 | Skill | What it does |
 |---|---|
-| [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md) | React and Next.js performance guidelines. |
-| [vercel-composition-patterns](skills/vercel-composition-patterns/SKILL.md) | React composition patterns for component APIs. |
-| [vercel-react-native-skills](skills/vercel-react-native-skills/SKILL.md) | React Native and Expo best practices. |
-| [vercel-react-view-transitions](skills/vercel-react-view-transitions/SKILL.md) | Animations with React's View Transition API. |
+| [vercel-react-best-practices](https://github.com/jgwill/dotagents/blob/main/skills/vercel-react-best-practices/SKILL.md) | React and Next.js performance guidelines. |
+| [vercel-composition-patterns](https://github.com/jgwill/dotagents/blob/main/skills/vercel-composition-patterns/SKILL.md) | React composition patterns for component APIs. |
+| [vercel-react-native-skills](https://github.com/jgwill/dotagents/blob/main/skills/vercel-react-native-skills/SKILL.md) | React Native and Expo best practices. |
+| [vercel-react-view-transitions](https://github.com/jgwill/dotagents/blob/main/skills/vercel-react-view-transitions/SKILL.md) | Animations with React's View Transition API. |
+
+The docs site leaves these four out of its build, so they link to GitHub.
 | [web-design-guidelines](skills/web-design-guidelines/SKILL.md) | Review UI code against Web Interface Guidelines. |
 
 ### Placeholder
@@ -158,5 +156,4 @@ These sit under `skills/` or the repo root and are not installable. Install igno
 - `skills/miadi/`: parent folder of the two Facebook skills.
 - `skills/output/`, `skills/.pde/`, `skills/.hch/`: session output and tooling state, per machine.
 - `skills/.mw/`: target of `mw skill install`.
-- `archived-skills/`: retired skills, kept for history.
 - `agents/`, `commands/`: agent persona JSON and command prompts.
