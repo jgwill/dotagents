@@ -194,6 +194,10 @@ Excerpt: <distinctive opening text>
 3. **Treating `Next` as harmless.** It can lead directly to distribution settings or publication. Respect the preview checkpoint.
 4. **Claiming poll support from memory.** Inspect `More post options`; on 2026-09-23 Tushell's standard Page composer exposed no native poll.
 5. **Reusing stale refs.** Every modal change can renumber elements.
+   - Facebook may reset an upload input's `files` after accepting media. Verify the composer's attached-media preview, filename and dimensions; an empty input is not proof of failed attachment. Do not attach a duplicate to repair it.
+   - A newly published timestamp anchor may initially contain a placeholder fragment such as `#?...`, not its permalink. Hover that actual timestamp through the browser, then read the hydrated `/posts/...` href and open its clean permalink to verify the named post. Never invent a permalink from the placeholder.
+   - The Public audience icon can be `svg[role="img"][title="Shared with Public"]`, not an `img[alt]`. Prefer the accessibility snapshot; inspect SVG titles when a DOM-only check misses it.
+   - Detached clones can collapse paragraph boundaries in `innerText`. Read the attached message or serialize its actual paragraph blocks. For a live-copy comparison, normalize Facebook's whitespace and decode the episode destination from `l.facebook.com` only; retain the exact composer-text comparison before publishing.
 6. **Calling a submitted click success.** Read the post back and return its URL.
 7. **Overwriting the Page voice with generic marketing.** Ground drafts in live posts and the page-voice reference.
 8. **Making a forecast sound settled.** Mark it as inferred or possible and name the observations supporting it.
