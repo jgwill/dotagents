@@ -4,53 +4,15 @@ Skills shared across machines and agents. Each skill is a directory with a `SKIL
 
 ## Install
 
-Clone the repo (or pull an existing clone), then symlink every skill that has a `SKILL.md`.
-
 ```bash
-git clone git@github.com:jgwill/dotagents.git ~/.agents   # existing clone: git -C ~/.agents pull
+git clone git@github.com:jgwill/dotagents.git ~/.agents
+git clone git@github.com:jgwill/miadi-orchestration-kit.git ~/miadi-orchestration-kit
 mkdir -p ~/.claude/skills
-cd ~/.agents/skills
-find -L . -maxdepth 4 -name SKILL.md -not -path './.*' 2>/dev/null | sort | while read -r f; do
-  dir=${f%/SKILL.md}; dir=${dir#./}; name=${dir##*/}
-  [ "$name" = visualization ] && continue                  # placeholder, see below
-  dest=$HOME/.claude/skills/$name
-  if [ -d "$dest" ] && [ ! -L "$dest" ]; then echo "skip $name: real directory, run Clean first"; continue; fi
-  ln -sfn "$HOME/.agents/skills/$dir" "$dest"
-done
+ln -s ~/.agents/skills/<name> ~/.claude/skills/<name>
+ln -s ~/miadi-orchestration-kit/skills/<name> ~/.claude/skills/<name>
 ```
 
-A new skill follows the same shape: author it in `skills/<name>/SKILL.md`, then rerun the loop.
-
-## Clean
-
-Run this before or after Install. It lists first and changes nothing until `DRY=0`.
-
-```bash
-DRY=1                                   # set DRY=0 to apply
-trash=$HOME/.claude/skills-trash/$(date +%y%m%d%H%M)
-cd ~/.claude/skills || exit
-
-# 1. Broken symlinks (targets that were moved or removed)
-for l in *; do
-  if [ -L "$l" ] && [ ! -e "$l" ]; then
-    echo "broken: $l"
-    if [ "$DRY" = 0 ]; then rm "$l"; fi
-  fi
-done
-
-# 2. Real directories that copy a repo skill
-for d in */; do
-  n=${d%/}; [ -L "$n" ] && continue
-  if [ -f ~/.agents/skills/$n/SKILL.md ]; then
-    echo "stale copy: $n"
-    if [ "$DRY" = 0 ]; then mkdir -p "$trash"; mv "$n" "$trash/"; fi
-  fi
-done
-```
-
-Stale copies go to `~/.claude/skills-trash/`, not to the bin. After step 2, rerun Install so the repo version takes the place of the copy.
-
-`facebook-page-publishing` and `facebook-page-stewardship` moved to `skills/miadi/social-media/` and carry the `miadi-` prefix now. Symlinks under the old names are broken, and step 1 removes them.
+Pick `<name>` from the tables below. An existing clone updates with `git pull`.
 
 ## Skills
 
@@ -122,7 +84,7 @@ The docs site leaves these four out of its build, so they link to GitHub.
 
 ## Skills hosted in other repos
 
-These appear in `skills/` as local symlinks and are not tracked here. Install each from its source.
+Not tracked here. The first three come with the `miadi-orchestration-kit` clone from Install.
 
 | Skill | Source |
 |---|---|
@@ -131,7 +93,7 @@ These appear in `skills/` as local symlinks and are not tracked here. Install ea
 | [proposal-visualization](https://docs.miadi-orchestration-kit.jgwill.com/skills/proposal-visualization/SKILL.html) | `jgwill/miadi-orchestration-kit` |
 | [miadi-review](https://docs.miadi.jgwill.com/packages/review-service/skills/miadi-review/SKILL.html) | `jgwill/Miadi`, `packages/review-service/skills/miadi-review` |
 
-Link one with `ln -sfn <checkout>/skills/<name> ~/.claude/skills/<name>`.
+`miadi-review` needs a checkout of `jgwill/Miadi`, linked the same way.
 
 ## mw-managed skills (not in this repo)
 
@@ -149,7 +111,7 @@ MCP tool guidance is tracked at jgwill/medicine-wheel#73. Migration context: jgw
 
 ## Not skills
 
-These sit under `skills/` or the repo root and are not installable. Install ignores them because they have no `SKILL.md`.
+These sit under `skills/` or the repo root and are not installable. They have no `SKILL.md`.
 
 - `skills/AGENTS.md`: status notes per skill.
 - `skills/jgt-skills/`: one shell script for the trading platform, no skill yet.
@@ -157,3 +119,5 @@ These sit under `skills/` or the repo root and are not installable. Install igno
 - `skills/output/`, `skills/.pde/`, `skills/.hch/`: session output and tooling state, per machine.
 - `skills/.mw/`: target of `mw skill install`.
 - `agents/`, `commands/`: agent persona JSON and command prompts.
+
+To link every skill in one pass and clean old entries, see [INSTALL.md](INSTALL.md).
