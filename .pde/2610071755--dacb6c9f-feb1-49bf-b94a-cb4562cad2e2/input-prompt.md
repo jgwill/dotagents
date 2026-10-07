@@ -1,0 +1,11 @@
+# Input prompt — William, 2026-10-07, session "miadi-music-session-observability-marketplace-install"
+
+## Context the prompt answers
+
+- `atelier-jerry` plugin: jgwill/miadi-orchestration-kit#44, branch `Gerico1007:feat/atelier-jerry-plugin`, now carrying upstream main and commit `c8dd45b` (four apt packages `miadi-music`, `-render`, `-measure`, `-video` in `packages/miadi/deb`, plugin 0.1.1).
+- The home folders of gmusic were synced from eury to gaia (`.agents/gmusic-sync-to-gaia.sh`), including `atelier-jerry-origin-1937aa47` (Jerry's creation session, minus `03-rendered/`), the compositions and recordings.
+- Earlier user message: "miadi will produce episode for interactive TV Series and in them, there's music and the whole body of work here is part of what would make this working even though there might be part of it relating just to a musical album and not musical scoring for film or something like it... Organize that the best flexible ways so that when we propose our PR with all that part installable, it distribute and is all these musical prereq are installable alongside miadi"
+
+## The prompt
+
+That's good work. Uh, what I'm getting on one side is we are going to have a full installation and potential contribution for our delivery systems or distribution systems would be more accurate. After that, why I synchronized, it's important that you know it's because I'm pretty sure that inside of the actual version of the plugin, there are some missing parts. And it is one of your mission, if you had not done it, to actually find out what would make the plugin not being capable of reproducing what we did. So we expect by using that plugin that it's going to be capable of recreating the exact experience that I gave you context before. It might be hard to study and to ensure that we are there, and maybe you have already found out a lot of things and a lot of elements. Therefore, I'll let you advance in phases. And obviously, one of them will, will be to ensure that the contribution that we are making regarding the whole installation and deployment is made, as well as maybe the current version of the plugin. And you will work on it a little bit more to ensure that we are reaching that goal.
